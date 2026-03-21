@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AgentStep } from '$types/core';
 	import { formatDuration } from '$utils/formatting';
-	import { slide } from 'svelte/transition';
+	import { slide, fade } from 'svelte/transition';
 
 	export let steps: AgentStep[] = [];
 
@@ -58,7 +58,7 @@
 			Agent Activity
 		</h3>
 		{#if steps.length > 0}
-			<span class="text-[11px] text-zinc-600">{steps.length} steps</span>
+			<span class="text-[11px] text-zinc-600 font-mono">{steps.length} step{steps.length !== 1 ? 's' : ''}</span>
 		{/if}
 	</div>
 
@@ -68,7 +68,8 @@
 				<svg class="w-8 h-8 mx-auto mb-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
 				</svg>
-				Agent steps will appear here
+				<p>Agent steps will appear here</p>
+				<p class="text-[11px] text-zinc-700 mt-1">Send a message to start the agent</p>
 			</div>
 		{:else}
 			{#each steps as step (step.id)}
@@ -78,7 +79,7 @@
 				>
 					<button
 						on:click={() => toggleStep(step.id)}
-						class="w-full px-3 py-2 flex items-center gap-2 text-left"
+						class="w-full px-3 py-2.5 flex items-center gap-2.5 text-left hover:bg-white/[0.02] transition-colors"
 					>
 						{#if step.status === 'running'}
 							<div class="w-4 h-4 flex-shrink-0">
@@ -96,13 +97,13 @@
 						<span class="text-xs text-zinc-300 flex-1 truncate">{step.description}</span>
 
 						{#if step.completedAt && step.startedAt}
-							<span class="text-[10px] text-zinc-600 font-mono">
+							<span class="text-[10px] text-zinc-600 font-mono flex-shrink-0">
 								{formatDuration(new Date(step.completedAt).getTime() - new Date(step.startedAt).getTime())}
 							</span>
 						{/if}
 
 						<svg
-							class="w-3 h-3 text-zinc-600 transition-transform"
+							class="w-3 h-3 text-zinc-600 transition-transform duration-150 flex-shrink-0"
 							class:rotate-180={expandedSteps.has(step.id)}
 							fill="none" stroke="currentColor" viewBox="0 0 24 24"
 						>

@@ -11,44 +11,11 @@ Powered by [NVIDIA NIM](https://build.nvidia.com) (free AI models).
 - **GitHub integration** — Connect your GitHub, pick a repo, and the AI creates PRs you can merge
 - **Free** — Uses NVIDIA's free AI API. No paid plans.
 
-## Deploy to Vercel (recommended)
-
-1. **Fork this repo** on GitHub
-
-2. **Go to [vercel.com](https://vercel.com)** and import your forked repo
-
-3. **Add a Postgres database**:
-   - In your Vercel project, go to **Storage** > **Create Database** > **Postgres**
-   - This is free and sets up automatically
-
-4. **Create a GitHub OAuth App** (for the GitHub login/PR features):
-   - Go to [github.com/settings/applications/new](https://github.com/settings/applications/new)
-   - **Application name**: KlimCode
-   - **Homepage URL**: `https://your-app.vercel.app`
-   - **Authorization callback URL**: `https://your-app.vercel.app/api/github/callback`
-   - Click **Register application**
-   - Copy the **Client ID** and generate a **Client Secret**
-
-5. **Add environment variables** in Vercel:
-   - Go to your Vercel project > **Settings** > **Environment Variables**
-   - Add these:
-
-   | Name | Value |
-   |------|-------|
-   | `GITHUB_CLIENT_ID` | *(from step 4)* |
-   | `GITHUB_CLIENT_SECRET` | *(from step 4)* |
-   | `KLIMCODE_SECRET` | *(any random string)* |
-
-   > The `POSTGRES_URL` is set automatically by Vercel when you add the database.
-
-6. **Deploy!** Vercel builds and deploys automatically.
 
 ### Wait, what about the NVIDIA API key?
 
 Each user adds their own free NVIDIA API key in the Settings page after they log in.
 Get one at [build.nvidia.com](https://build.nvidia.com) — it's free, no credit card needed.
-
-This way the app is free for you to host (no API costs on your end).
 
 ## Run locally
 

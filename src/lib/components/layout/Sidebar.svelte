@@ -12,6 +12,8 @@
 	let showNewMenu = false;
 	let showUserMenu = false;
 	let searchQuery = '';
+	let editingId: string | null = null;
+	let editTitle = '';
 
 	async function handleNewChat() {
 		showNewMenu = false;
@@ -37,35 +39,60 @@
 		}
 	}
 
+	// Inline rename - inspired by chat-ui NavConversationItem
+	function startRename(e: Event, conv: { id: string; title: string }) {
+		e.stopPropagation();
+		editingId = conv.id;
+		editTitle = conv.title;
+	}
+
+	function finishRename() {
+		// For now just clear editing state - would need API call to persist
+		editingId = null;
+		editTitle = '';
+	}
+
+	function handleRenameKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			finishRename();
+		} else if (e.key === 'Escape') {
+			editingId = null;
+			editTitle = '';
+		}
+	}
+
 	function handleLogout() {
 		logout();
 		goto('/');
 	}
 
-	// Group conversations by time
+	// Group conversations by time - inspired by chat-ui date ranges
 	$: filteredConversations = searchQuery
 		? $conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
 		: $conversations;
 
-	$: todayConvs = filteredConversations.filter(c => {
-		const d = new Date(c.updatedAt);
+	$: {
 		const now = new Date();
-		return d.toDateString() === now.toDateString();
-	});
+		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+		const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+		const weekStart = new Date(todayStart.getTime() - 7 * 86400000);
 
-	$: yesterdayConvs = filteredConversations.filter(c => {
-		const d = new Date(c.updatedAt);
-		const yesterday = new Date();
-		yesterday.setDate(yesterday.getDate() - 1);
-		return d.toDateString() === yesterday.toDateString();
-	});
+		todayConvs = filteredConversations.filter(c => new Date(c.updatedAt) >= todayStart);
+		yesterdayConvs = filteredConversations.filter(c => {
+			const d = new Date(c.updatedAt);
+			return d >= yesterdayStart && d < todayStart;
+		});
+		weekConvs = filteredConversations.filter(c => {
+			const d = new Date(c.updatedAt);
+			return d >= weekStart && d < yesterdayStart;
+		});
+		olderConvs = filteredConversations.filter(c => new Date(c.updatedAt) < weekStart);
+	}
 
-	$: olderConvs = filteredConversations.filter(c => {
-		const d = new Date(c.updatedAt);
-		const yesterday = new Date();
-		yesterday.setDate(yesterday.getDate() - 1);
-		return d < yesterday && d.toDateString() !== new Date().toDateString();
-	});
+	let todayConvs: typeof $conversations = [];
+	let yesterdayConvs: typeof $conversations = [];
+	let weekConvs: typeof $conversations = [];
+	let olderConvs: typeof $conversations = [];
 </script>
 
 <aside class="flex flex-col h-full w-full bg-zinc-900 border-r border-zinc-800/80">
@@ -134,7 +161,7 @@
 	</div>
 
 	<!-- Search -->
-	{#if $conversations.length > 5}
+	{#if $conversations.length > 3}
 		<div class="px-3 pb-2">
 			<div class="relative">
 				<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,23 +173,40 @@
 					placeholder="Search chats..."
 					class="w-full bg-zinc-800/50 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
 				/>
+				{#if searchQuery}
+					<button
+						on:click={() => searchQuery = ''}
+						class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+					>
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				{/if}
 			</div>
 		</div>
 	{/if}
 
-	<!-- Conversation List -->
+	<!-- Conversation List - grouped by date with inline editing -->
 	<div class="flex-1 overflow-y-auto px-2 space-y-0.5">
-		{#if todayConvs.length > 0}
-			<div class="px-2 pt-3 pb-1.5">
-				<span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Today</span>
-			</div>
-			{#each todayConvs as conv (conv.id)}
-				<button
-					on:click={() => handleSelect(conv.id)}
-					class="w-full text-left rounded-lg transition-all duration-100 group relative
-						{$activeConversationId === conv.id ? 'bg-zinc-800 text-zinc-100' : 'hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200'}"
-				>
-					<div class="flex items-center gap-2.5 px-3 py-2">
+		{#each [
+			{ label: 'Today', items: todayConvs },
+			{ label: 'Yesterday', items: yesterdayConvs },
+			{ label: 'This Week', items: weekConvs },
+			{ label: 'Previous', items: olderConvs }
+		] as group}
+			{#if group.items.length > 0}
+				<div class="px-2 pt-3 pb-1.5">
+					<span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">{group.label}</span>
+				</div>
+				{#each group.items as conv (conv.id)}
+					<a
+						href="/chat/{conv.id}"
+						on:click|preventDefault={() => handleSelect(conv.id)}
+						class="group flex h-[2.25rem] items-center gap-2 rounded-lg pl-2.5 pr-2 transition-all duration-100
+							{$activeConversationId === conv.id ? 'bg-zinc-800 text-zinc-100' : 'hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200'}"
+					>
+						<!-- Mode indicator dot -->
 						<div class="flex-shrink-0">
 							{#if conv.mode === 'agent'}
 								<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
@@ -170,90 +214,56 @@
 								<div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
 							{/if}
 						</div>
-						<span class="flex-1 text-[13px] truncate">{conv.title}</span>
-						<button
-							on:click={(e) => handleDelete(e, conv.id)}
-							class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all flex-shrink-0"
-							title="Delete"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-				</button>
-			{/each}
-		{/if}
 
-		{#if yesterdayConvs.length > 0}
-			<div class="px-2 pt-4 pb-1.5">
-				<span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Yesterday</span>
-			</div>
-			{#each yesterdayConvs as conv (conv.id)}
-				<button
-					on:click={() => handleSelect(conv.id)}
-					class="w-full text-left rounded-lg transition-all duration-100 group relative
-						{$activeConversationId === conv.id ? 'bg-zinc-800 text-zinc-100' : 'hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200'}"
-				>
-					<div class="flex items-center gap-2.5 px-3 py-2">
-						<div class="flex-shrink-0">
-							{#if conv.mode === 'agent'}
-								<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-							{:else}
-								<div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-							{/if}
-						</div>
-						<span class="flex-1 text-[13px] truncate">{conv.title}</span>
-						<button
-							on:click={(e) => handleDelete(e, conv.id)}
-							class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all flex-shrink-0"
-							title="Delete"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-				</button>
-			{/each}
-		{/if}
+						<!-- Title or inline edit input -->
+						{#if editingId === conv.id}
+							<input
+								type="text"
+								bind:value={editTitle}
+								on:keydown={handleRenameKeydown}
+								on:blur={finishRename}
+								class="flex-1 min-w-0 bg-transparent border-none p-0 text-[13px] text-inherit outline-none focus:ring-0 truncate"
+								autofocus
+							/>
+						{:else}
+							<span class="flex-1 text-[13px] truncate first-letter:uppercase">{conv.title}</span>
+						{/if}
 
-		{#if olderConvs.length > 0}
-			<div class="px-2 pt-4 pb-1.5">
-				<span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Previous</span>
-			</div>
-			{#each olderConvs as conv (conv.id)}
-				<button
-					on:click={() => handleSelect(conv.id)}
-					class="w-full text-left rounded-lg transition-all duration-100 group relative
-						{$activeConversationId === conv.id ? 'bg-zinc-800 text-zinc-100' : 'hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200'}"
-				>
-					<div class="flex items-center gap-2.5 px-3 py-2">
-						<div class="flex-shrink-0">
-							{#if conv.mode === 'agent'}
-								<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-							{:else}
-								<div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-							{/if}
+						<!-- Action buttons - visible on hover (inspired by chat-ui + open-webui) -->
+						<div class="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+							<button
+								on:click|preventDefault|stopPropagation={(e) => startRename(e, conv)}
+								class="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+								title="Rename"
+							>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+								</svg>
+							</button>
+							<button
+								on:click|preventDefault|stopPropagation={(e) => handleDelete(e, conv.id)}
+								class="p-1 rounded text-zinc-600 hover:text-red-400 transition-colors"
+								title="Delete"
+							>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+								</svg>
+							</button>
 						</div>
-						<span class="flex-1 text-[13px] truncate">{conv.title}</span>
-						<button
-							on:click={(e) => handleDelete(e, conv.id)}
-							class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all flex-shrink-0"
-							title="Delete"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-				</button>
-			{/each}
-		{/if}
+					</a>
+				{/each}
+			{/if}
+		{/each}
 
 		{#if filteredConversations.length === 0}
 			<div class="px-3 py-8 text-center">
+				<svg class="w-8 h-8 mx-auto mb-3 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+				</svg>
 				<p class="text-xs text-zinc-600">{searchQuery ? 'No matching chats' : 'No conversations yet'}</p>
+				{#if !searchQuery}
+					<p class="text-[11px] text-zinc-700 mt-1">Start a new chat to get going</p>
+				{/if}
 			</div>
 		{/if}
 	</div>

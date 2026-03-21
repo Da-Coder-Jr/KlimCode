@@ -3,6 +3,7 @@ import hljs from 'highlight.js';
 
 const renderer = new marked.Renderer();
 
+// Enhanced code blocks with sticky header and preview support - inspired by chat-ui CodeBlock
 renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
 	const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
 	let highlighted: string;
@@ -15,10 +16,18 @@ renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
 
 	const langLabel = lang || 'text';
 
+	// Detect HTML/SVG for potential preview - from chat-ui
+	const isPreviewable = lang === 'html' || lang === 'svg' ||
+		text.trimStart().startsWith('<!DOCTYPE') ||
+		text.trimStart().startsWith('<svg');
+
 	return `<div class="code-block-wrapper">
 		<div class="code-block-header">
 			<span class="code-block-lang">${escapeHtml(langLabel)}</span>
-			<button class="code-copy-btn" data-code="${escapeAttr(text)}">Copy</button>
+			<div style="display:flex;align-items:center;gap:4px">
+				${isPreviewable ? '<span class="code-preview-badge">Preview</span>' : ''}
+				<button class="code-copy-btn" data-code="${escapeAttr(text)}">Copy</button>
+			</div>
 		</div>
 		<pre class="code-block"><code class="hljs language-${escapeHtml(language)}">${highlighted}</code></pre>
 	</div>`;
@@ -30,6 +39,11 @@ renderer.link = function ({ href, text }: { href: string; text: string }) {
 
 renderer.table = function ({ header, body }: { header: string; body: string }) {
 	return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+};
+
+// Enhanced image rendering with lightbox-ready styling
+renderer.image = function ({ href, text }: { href: string; text: string }) {
+	return `<img src="${escapeAttr(href)}" alt="${escapeAttr(text || '')}" loading="lazy" class="rounded-xl max-w-full" />`;
 };
 
 marked.setOptions({
