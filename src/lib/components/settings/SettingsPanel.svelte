@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { settings, saveSettings, saveApiKey, testApiKey } from '$stores/settings';
-	import { AVAILABLE_MODELS } from '$lib/server/ai/nvidia';
+	import { AVAILABLE_MODELS } from '$lib/models';
 	import GitHubConnect from '$components/github/GitHubConnect.svelte';
 
 	let apiKeyInput = '';
@@ -51,12 +51,21 @@
 
 		<div class="space-y-3">
 			<div class="relative">
+				{#if apiKeyVisible}
 				<input
 					bind:value={apiKeyInput}
-					type={apiKeyVisible ? 'text' : 'password'}
+					type="text"
 					placeholder={hasApiKey ? '••••••••••••••••••••' : 'nvapi-xxxxxxxxxxxxxxxxxx'}
 					class="input-field w-full pr-10"
 				/>
+				{:else}
+				<input
+					bind:value={apiKeyInput}
+					type="password"
+					placeholder={hasApiKey ? '••••••••••••••••••••' : 'nvapi-xxxxxxxxxxxxxxxxxx'}
+					class="input-field w-full pr-10"
+				/>
+				{/if}
 				<button
 					on:click={() => apiKeyVisible = !apiKeyVisible}
 					class="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-200"
@@ -132,7 +141,7 @@
 				<input
 					type="checkbox"
 					checked={$settings.agent.autoApproveReads}
-					on:change={(e) => saveSettings({ agent: { ...$settings.agent, autoApproveReads: (e.target as HTMLInputElement).checked } })}
+					on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, autoApproveReads: el.checked } }); }}
 					class="w-5 h-5 rounded bg-surface-700 border-surface-600 text-klim-600 focus:ring-klim-500"
 				/>
 			</label>
@@ -145,7 +154,7 @@
 				<input
 					type="checkbox"
 					checked={$settings.agent.autoApproveCommands}
-					on:change={(e) => saveSettings({ agent: { ...$settings.agent, autoApproveCommands: (e.target as HTMLInputElement).checked } })}
+					on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, autoApproveCommands: el.checked } }); }}
 					class="w-5 h-5 rounded bg-surface-700 border-surface-600 text-klim-600 focus:ring-klim-500"
 				/>
 			</label>
@@ -155,7 +164,7 @@
 				<input
 					type="number"
 					value={$settings.agent.sandboxTimeout / 1000}
-					on:change={(e) => saveSettings({ agent: { ...$settings.agent, sandboxTimeout: parseInt((e.target as HTMLInputElement).value) * 1000 } })}
+					on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, sandboxTimeout: parseInt(el.value) * 1000 } }); }}
 					class="input-field w-32"
 					min="5"
 					max="300"
