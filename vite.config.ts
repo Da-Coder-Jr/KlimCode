@@ -9,14 +9,5 @@ export default defineConfig({
 	},
 	preview: {
 		port: 7700
-	},
-	optimizeDeps: {
-		exclude: ['better-sqlite3']
-	},
-	build: {
-		target: 'esnext',
-		rollupOptions: {
-			external: ['better-sqlite3']
-		}
 	}
 });

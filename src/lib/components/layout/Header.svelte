@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { activeConversation } from '$stores/chat';
-	import { settings } from '$stores/settings';
-	import { AVAILABLE_MODELS } from '$lib/server/ai/nvidia';
+	import ModelSelector from '$components/chat/ModelSelector.svelte';
 
 	export let onToggleSidebar: () => void = () => {};
 	export let onToggleAgent: () => void = () => {};
 	export let showAgentPanel = false;
 
-	$: currentModel = $activeConversation?.model || $settings.defaultModel;
-	$: modelInfo = AVAILABLE_MODELS?.find(m => m.id === currentModel);
+	let modelSelectorOpen = false;
 </script>
 
-<header class="h-14 border-b border-surface-700 bg-surface-900/80 backdrop-blur-sm flex items-center justify-between px-4 flex-shrink-0">
+<header class="h-14 border-b border-surface-700/50 bg-surface-950/80 backdrop-blur-xl flex items-center justify-between px-4 flex-shrink-0 z-10">
 	<div class="flex items-center gap-3">
 		<button on:click={onToggleSidebar} class="lg:hidden text-surface-400 hover:text-surface-200 p-1.5 rounded-lg hover:bg-surface-800">
 			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,37 +18,51 @@
 		</button>
 
 		{#if $activeConversation}
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2.5">
 				{#if $activeConversation.mode === 'agent'}
-					<span class="badge-success">Agent</span>
+					<div class="flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+						<div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-slow"></div>
+						Agent
+					</div>
 				{:else}
-					<span class="badge-klim">Chat</span>
+					<div class="flex items-center gap-1.5 text-xs font-medium text-klim-400 bg-klim-500/10 px-2 py-1 rounded-md">
+						<div class="w-1.5 h-1.5 rounded-full bg-klim-400"></div>
+						Chat
+					</div>
 				{/if}
-				<h1 class="text-surface-200 font-medium text-sm truncate max-w-md">
+				<h1 class="text-surface-300 text-sm truncate max-w-[300px]">
 					{$activeConversation.title}
 				</h1>
 			</div>
 		{:else}
-			<h1 class="text-surface-200 font-medium">KlimCode</h1>
+			<div class="flex items-center gap-2">
+				<div class="w-6 h-6 bg-gradient-to-br from-klim-500 to-klim-700 rounded-md flex items-center justify-center">
+					<span class="text-white font-bold text-[10px]">K</span>
+				</div>
+				<span class="text-surface-200 font-semibold text-sm">KlimCode</span>
+			</div>
 		{/if}
 	</div>
 
 	<div class="flex items-center gap-2">
 		{#if $activeConversation}
-			<div class="hidden sm:flex items-center gap-1.5 text-xs text-surface-400 bg-surface-800 rounded-lg px-3 py-1.5">
-				<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-				<span class="truncate max-w-[200px]">{currentModel?.split('/').pop() || 'Unknown'}</span>
-			</div>
+			<ModelSelector
+				currentModel={$activeConversation.model}
+				bind:open={modelSelectorOpen}
+			/>
 		{/if}
 
 		{#if $activeConversation?.mode === 'agent'}
 			<button
 				on:click={onToggleAgent}
-				class="p-2 rounded-lg transition-colors {showAgentPanel ? 'bg-klim-600 text-white' : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800'}"
+				class="p-2 rounded-lg transition-all duration-200
+					{showAgentPanel
+						? 'bg-klim-600 text-white shadow-lg shadow-klim-500/20'
+						: 'text-surface-400 hover:text-surface-200 hover:bg-surface-800'}"
 				title="Toggle Agent Panel"
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 				</svg>
 			</button>
 		{/if}

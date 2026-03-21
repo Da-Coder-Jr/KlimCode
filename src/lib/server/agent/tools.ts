@@ -1,10 +1,8 @@
 import type { ToolCall, ToolResult, AgentStep } from '$types/core';
-import { Sandbox, SandboxError } from './sandbox';
+import { Workspace, WorkspaceError } from './workspace';
 
 export interface ToolExecutionContext {
-	sandbox: Sandbox;
-	githubToken?: string;
-	repoFullName?: string;
+	workspace: Workspace;
 	onStep?: (step: AgentStep) => void;
 }
 
@@ -12,7 +10,7 @@ export async function executeToolCall(
 	toolCall: ToolCall,
 	context: ToolExecutionContext
 ): Promise<ToolResult> {
-	const { sandbox, onStep } = context;
+	const { workspace, onStep } = context;
 	const funcName = toolCall.function.name;
 	let args: Record<string, string>;
 
@@ -41,22 +39,22 @@ export async function executeToolCall(
 
 		switch (funcName) {
 			case 'read_file':
-				result = handleReadFile(sandbox, args);
+				result = await handleReadFile(workspace, args);
 				break;
 			case 'write_file':
-				result = handleWriteFile(sandbox, args);
+				result = handleWriteFile(workspace, args);
 				break;
 			case 'edit_file':
-				result = handleEditFile(sandbox, args);
-				break;
-			case 'run_command':
-				result = handleRunCommand(sandbox, args);
+				result = handleEditFile(workspace, args);
 				break;
 			case 'search_files':
-				result = handleSearchFiles(sandbox, args);
+				result = await handleSearchFiles(workspace, args);
+				break;
+			case 'list_files':
+				result = await handleListFiles(workspace, args);
 				break;
 			case 'create_pr':
-				result = await handleCreatePR(sandbox, args, context);
+				result = await handleCreatePR(workspace, args);
 				break;
 			default:
 				result = `Unknown tool: ${funcName}`;
@@ -79,8 +77,8 @@ export async function executeToolCall(
 	}
 }
 
-function handleReadFile(sandbox: Sandbox, args: Record<string, string>): string {
-	const content = sandbox.readFile(args.path);
+async function handleReadFile(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	const content = await workspace.readFile(args.path);
 	const lines = content.split('\n');
 
 	if (lines.length > 500) {
@@ -90,93 +88,47 @@ function handleReadFile(sandbox: Sandbox, args: Record<string, string>): string 
 	return `File: ${args.path}\n\n${content}`;
 }
 
-function handleWriteFile(sandbox: Sandbox, args: Record<string, string>): string {
-	sandbox.writeFile(args.path, args.content);
-	return `Successfully wrote ${args.content.split('\n').length} lines to ${args.path}`;
+function handleWriteFile(workspace: Workspace, args: Record<string, string>): string {
+	workspace.writeFile(args.path, args.content);
+	return `Wrote ${args.content.split('\n').length} lines to ${args.path}`;
 }
 
-function handleEditFile(sandbox: Sandbox, args: Record<string, string>): string {
-	sandbox.editFile(args.path, args.old_text, args.new_text);
-	return `Successfully edited ${args.path}`;
+function handleEditFile(workspace: Workspace, args: Record<string, string>): string {
+	workspace.editFile(args.path, args.old_text, args.new_text);
+	return `Edited ${args.path}`;
 }
 
-function handleRunCommand(sandbox: Sandbox, args: Record<string, string>): string {
-	const result = sandbox.runCommand(args.command, args.working_directory);
-	const status = result.exitCode === 0 ? 'succeeded' : `failed (exit code ${result.exitCode})`;
-	return `Command ${status} in ${result.duration}ms:\n$ ${args.command}\n\n${result.output}`;
-}
-
-function handleSearchFiles(sandbox: Sandbox, args: Record<string, string>): string {
-	const results = sandbox.searchFiles(
+async function handleSearchFiles(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	const results = await workspace.searchFiles(
 		args.pattern,
-		args.search_type as 'filename' | 'content',
-		args.directory
+		args.search_type as 'filename' | 'content'
 	);
 
-	if (results.length === 0) {
-		return `No matches found for pattern: ${args.pattern}`;
-	}
-
+	if (results.length === 0) return `No matches found for: ${args.pattern}`;
 	return `Found ${results.length} match(es):\n${results.map((r) => `  ${r}`).join('\n')}`;
 }
 
-async function handleCreatePR(
-	sandbox: Sandbox,
-	args: Record<string, string>,
-	context: ToolExecutionContext
-): Promise<string> {
-	if (!context.githubToken || !context.repoFullName) {
-		// Draft the PR locally
-		const diff = sandbox.getDiff();
-		const files = sandbox.files.map((f) => f.path);
+async function handleListFiles(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	const files = await workspace.listFiles(args.directory);
+	if (files.length === 0) return 'No files found';
+	return `Files:\n${files.map((f) => `  ${f}`).join('\n')}`;
+}
 
-		return `PR Draft Created (GitHub not connected):
-Title: ${args.title}
-Branch: ${args.branch}
-Base: ${args.base_branch || 'main'}
-Files changed: ${files.join(', ')}
-
-Description:
-${args.body}
-
-Diff preview:
-${diff.slice(0, 3000)}${diff.length > 3000 ? '\n... (truncated)' : ''}
-
-To submit this PR, connect your GitHub account in Settings.`;
+async function handleCreatePR(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	const changes = workspace.getChangedFiles();
+	if (changes.length === 0) {
+		return 'No files have been changed. Make some changes first before creating a PR.';
 	}
 
-	// Submit PR via GitHub API
 	try {
-		const branchName = args.branch;
-		sandbox.createBranch(branchName);
-		sandbox.commitChanges(`${args.title}\n\n${args.body}`);
+		const branchName = args.branch || `klimcode/${Date.now()}`;
+		const pr = await workspace.createPullRequest(
+			args.title,
+			args.body,
+			branchName
+		);
 
-		// Push and create PR
-		sandbox.runCommand(`git push origin ${branchName}`);
-
-		const [owner, repo] = context.repoFullName.split('/');
-		const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${context.githubToken}`,
-				Accept: 'application/vnd.github.v3+json',
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				title: args.title,
-				body: args.body,
-				head: branchName,
-				base: args.base_branch || 'main'
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			return `Failed to create PR: ${error}`;
-		}
-
-		const pr = await response.json();
-		return `PR #${pr.number} created successfully!\nURL: ${pr.html_url}\nTitle: ${pr.title}`;
+		return `PR #${pr.number} created!\nURL: ${pr.url}\nBranch: ${branchName}\nFiles changed: ${changes.map((f) => f.path).join(', ')}`;
 	} catch (error) {
 		return `Failed to create PR: ${error instanceof Error ? error.message : 'Unknown error'}`;
 	}
@@ -187,8 +139,8 @@ function mapFunctionToStepType(funcName: string): AgentStep['type'] {
 		read_file: 'read_file',
 		write_file: 'write_file',
 		edit_file: 'edit_file',
-		run_command: 'run_command',
 		search_files: 'search_files',
+		list_files: 'browse_repo',
 		create_pr: 'create_pr'
 	};
 	return mapping[funcName] || 'think';
@@ -196,19 +148,12 @@ function mapFunctionToStepType(funcName: string): AgentStep['type'] {
 
 function describeToolCall(funcName: string, args: Record<string, string>): string {
 	switch (funcName) {
-		case 'read_file':
-			return `Reading ${args.path}`;
-		case 'write_file':
-			return `Writing to ${args.path}`;
-		case 'edit_file':
-			return `Editing ${args.path}`;
-		case 'run_command':
-			return `Running: ${args.command}`;
-		case 'search_files':
-			return `Searching for ${args.pattern}`;
-		case 'create_pr':
-			return `Creating PR: ${args.title}`;
-		default:
-			return `Executing ${funcName}`;
+		case 'read_file': return `Reading ${args.path}`;
+		case 'write_file': return `Writing to ${args.path}`;
+		case 'edit_file': return `Editing ${args.path}`;
+		case 'search_files': return `Searching for ${args.pattern}`;
+		case 'list_files': return `Listing files${args.directory ? ` in ${args.directory}` : ''}`;
+		case 'create_pr': return `Creating PR: ${args.title}`;
+		default: return `Executing ${funcName}`;
 	}
 }

@@ -1,40 +1,21 @@
+#!/usr/bin/env node
+
+/**
+ * Run this to create the database tables.
+ * Usage: npm run db:push
+ *
+ * Requires POSTGRES_URL environment variable.
+ */
+
+import 'dotenv/config';
 import { createPool } from '@vercel/postgres';
 
-let pool: ReturnType<typeof createPool> | null = null;
+async function main() {
+	console.log('Connecting to database...');
+	const pool = createPool();
 
-export function getPool() {
-	if (!pool) {
-		pool = createPool();
-	}
-	return pool;
-}
-
-export async function query(text: string, params: unknown[] = []) {
-	const p = getPool();
-	return p.query(text, params);
-}
-
-export async function queryOne<T = Record<string, unknown>>(
-	text: string,
-	params: unknown[] = []
-): Promise<T | null> {
-	const result = await query(text, params);
-	return (result.rows[0] as T) || null;
-}
-
-export async function queryMany<T = Record<string, unknown>>(
-	text: string,
-	params: unknown[] = []
-): Promise<T[]> {
-	const result = await query(text, params);
-	return result.rows as T[];
-}
-
-export async function initializeDatabase(): Promise<void> {
-	const p = getPool();
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS users (
+	const tables = [
+		`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			username TEXT UNIQUE NOT NULL,
 			display_name TEXT NOT NULL,
@@ -45,21 +26,15 @@ export async function initializeDatabase(): Promise<void> {
 			settings_json TEXT DEFAULT '{}',
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS sessions (
+		)`,
+		`CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			token TEXT UNIQUE NOT NULL,
 			expires_at TIMESTAMP NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS conversations (
+		)`,
+		`CREATE TABLE IF NOT EXISTS conversations (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			title TEXT NOT NULL DEFAULT 'New Conversation',
@@ -70,11 +45,8 @@ export async function initializeDatabase(): Promise<void> {
 			metadata_json TEXT DEFAULT '{}',
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS messages (
+		)`,
+		`CREATE TABLE IF NOT EXISTS messages (
 			id TEXT PRIMARY KEY,
 			conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
 			role TEXT NOT NULL,
@@ -86,22 +58,16 @@ export async function initializeDatabase(): Promise<void> {
 			tokens_prompt INTEGER DEFAULT 0,
 			tokens_completion INTEGER DEFAULT 0,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS api_keys (
+		)`,
+		`CREATE TABLE IF NOT EXISTS api_keys (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			provider TEXT NOT NULL DEFAULT 'nvidia',
 			api_key_encrypted TEXT NOT NULL,
 			label TEXT,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
-
-	await p.query(`
-		CREATE TABLE IF NOT EXISTS github_repos (
+		)`,
+		`CREATE TABLE IF NOT EXISTS github_repos (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			full_name TEXT NOT NULL,
@@ -112,20 +78,25 @@ export async function initializeDatabase(): Promise<void> {
 			is_private BOOLEAN DEFAULT false,
 			clone_url TEXT,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)
-	`);
+		)`
+	];
 
-	// Create indexes (IF NOT EXISTS works in Postgres)
-	await p.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
-	await p.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`);
-	await p.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`);
-	await p.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`);
+	const indexes = [
+		'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
+		'CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)',
+		'CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)',
+		'CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)'
+	];
+
+	for (const sql of [...tables, ...indexes]) {
+		await pool.query(sql);
+	}
+
+	console.log('Database tables created successfully!');
+	process.exit(0);
 }
 
-// Run migrations on first request
-let initialized = false;
-export async function ensureDb(): Promise<void> {
-	if (initialized) return;
-	await initializeDatabase();
-	initialized = true;
-}
+main().catch((err) => {
+	console.error('Failed:', err.message);
+	process.exit(1);
+});

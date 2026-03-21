@@ -4,8 +4,7 @@ import { getApiKey } from '$server/db/queries';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({}, { status: 401 });
-
-	const apiKey = getApiKey(locals.user.id);
+	const apiKey = await getApiKey(locals.user.id);
 
 	return json({
 		nvidiaApiKey: apiKey ? '••••••••' + apiKey.slice(-4) : '',
@@ -17,9 +16,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	});
 };
 
-export const PUT: RequestHandler = async ({ locals, request }) => {
+export const PUT: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ message: 'Not authenticated' }, { status: 401 });
-
-	// Settings are stored per-user; for now just acknowledge
 	return json({ success: true });
 };

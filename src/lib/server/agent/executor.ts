@@ -1,14 +1,12 @@
-import type { Message, ToolCall, ToolResult, AgentStep, StreamChunk } from '$types/core';
+import type { Message, ToolCall, AgentStep, StreamChunk } from '$types/core';
 import {
 	streamNvidiaResponse,
 	callNvidiaNonStreaming,
 	buildSystemPrompt,
-	getAgentTools,
-	type NvidiaAPIError
+	getAgentTools
 } from '$server/ai/nvidia';
-import { mergeToolCallChunks } from '$server/ai/streaming';
 import { executeToolCall, type ToolExecutionContext } from './tools';
-import { createSandbox, getSandbox, type Sandbox } from './sandbox';
+import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
 const MAX_TOOL_ROUNDS = 15;
 
@@ -17,9 +15,10 @@ interface AgentExecutionOptions {
 	model: string;
 	conversationId: string;
 	messages: Message[];
-	repoCloneUrl?: string;
-	repoFullName?: string;
+	repoOwner?: string;
+	repoName?: string;
 	githubToken?: string;
+	baseBranch?: string;
 	onStep?: (step: AgentStep) => void;
 }
 
@@ -27,109 +26,85 @@ export async function* executeAgent(
 	options: AgentExecutionOptions
 ): AsyncGenerator<StreamChunk> {
 	const {
-		apiKey,
-		model,
-		conversationId,
-		messages,
-		repoCloneUrl,
-		repoFullName,
-		githubToken,
+		apiKey, model, conversationId, messages,
+		repoOwner, repoName, githubToken, baseBranch,
 		onStep
 	} = options;
 
-	// Get or create sandbox
-	let sandbox = getSandbox(conversationId);
-	if (!sandbox) {
-		sandbox = createSandbox(conversationId, repoCloneUrl);
-		yield {
-			type: 'agent_step',
-			agentStep: {
-				id: 'sandbox-init',
-				type: 'think',
-				status: 'completed',
-				description: repoCloneUrl ? `Cloned repository into sandbox` : 'Created sandbox environment',
-				completedAt: new Date().toISOString()
-			}
-		};
+	// Get or create workspace
+	let workspace: Workspace | undefined;
+
+	if (repoOwner && repoName && githubToken) {
+		workspace = getWorkspace(conversationId);
+		if (!workspace) {
+			workspace = createWorkspace(conversationId, repoOwner, repoName, githubToken, baseBranch);
+			yield {
+				type: 'agent_step',
+				agentStep: {
+					id: 'workspace-init',
+					type: 'think',
+					status: 'completed',
+					description: `Connected to ${repoOwner}/${repoName}`,
+					completedAt: new Date().toISOString()
+				}
+			};
+		}
 	}
 
 	const systemPrompt = buildSystemPrompt('agent', {
-		repo: repoFullName,
-		branch: sandbox.gitBranch
+		repo: repoOwner && repoName ? `${repoOwner}/${repoName}` : undefined,
+		branch: baseBranch
 	});
 
-	// Build message history for the API
 	const apiMessages = buildAPIMessages(systemPrompt, messages);
 	const tools = getAgentTools();
 
-	const toolContext: ToolExecutionContext = {
-		sandbox,
-		githubToken,
-		repoFullName,
-		onStep
-	};
+	const toolContext: ToolExecutionContext | undefined = workspace
+		? { workspace, onStep }
+		: undefined;
 
-	// Agent loop: let the model call tools iteratively
 	let round = 0;
 	let currentMessages = [...apiMessages];
 
 	while (round < MAX_TOOL_ROUNDS) {
 		round++;
 
-		// Call the model
 		let fullContent = '';
 		const toolCalls: ToolCall[] = [];
 
 		try {
-			// Use non-streaming for tool-use rounds to simplify parsing
 			const result = await callNvidiaNonStreaming({
-				apiKey,
-				model,
-				messages: currentMessages,
-				tools,
-				toolChoice: 'auto',
+				apiKey, model, messages: currentMessages,
+				tools: toolContext ? tools : undefined,
+				toolChoice: toolContext ? 'auto' : undefined,
 				maxTokens: 8192
 			});
 
 			fullContent = result.content;
-
-			if (result.toolCalls) {
-				toolCalls.push(...result.toolCalls);
-			}
+			if (result.toolCalls) toolCalls.push(...result.toolCalls);
 		} catch (error) {
-			yield {
-				type: 'error',
-				error: error instanceof Error ? error.message : 'NVIDIA API error'
-			};
+			yield { type: 'error', error: error instanceof Error ? error.message : 'NVIDIA API error' };
 			return;
 		}
 
-		// Stream any text content
 		if (fullContent) {
 			yield { type: 'text', content: fullContent };
 		}
 
-		// If no tool calls, we're done
-		if (toolCalls.length === 0) {
+		if (toolCalls.length === 0 || !toolContext) {
 			yield { type: 'done' };
 			return;
 		}
 
-		// Add assistant message with tool calls
 		currentMessages.push({
 			role: 'assistant',
 			content: fullContent || '',
 			tool_calls: toolCalls.map((tc) => ({
-				id: tc.id,
-				type: 'function' as const,
-				function: {
-					name: tc.function.name,
-					arguments: tc.function.arguments
-				}
+				id: tc.id, type: 'function' as const,
+				function: { name: tc.function.name, arguments: tc.function.arguments }
 			}))
 		});
 
-		// Execute each tool call
 		for (const toolCall of toolCalls) {
 			const step: AgentStep = {
 				id: toolCall.id,
@@ -150,34 +125,25 @@ export async function* executeAgent(
 			yield { type: 'agent_step', agentStep: step };
 			yield { type: 'tool_result', toolResult: result };
 
-			// Add tool result to messages
 			currentMessages.push({
-				role: 'tool',
-				content: result.content,
-				tool_call_id: toolCall.id
+				role: 'tool', content: result.content, tool_call_id: toolCall.id
 			});
 		}
 	}
 
-	yield { type: 'text', content: '\n\n*Reached maximum tool execution rounds. Please continue the conversation if more work is needed.*' };
+	yield { type: 'text', content: '\n\n*Reached maximum tool rounds. Continue the conversation if more work is needed.*' };
 	yield { type: 'done' };
 }
 
 export async function* executeChat(options: {
-	apiKey: string;
-	model: string;
-	messages: Message[];
+	apiKey: string; model: string; messages: Message[];
 }): AsyncGenerator<StreamChunk> {
-	const { apiKey, model, messages } = options;
-
 	const systemPrompt = buildSystemPrompt('chat');
-	const apiMessages = buildAPIMessages(systemPrompt, messages);
+	const apiMessages = buildAPIMessages(systemPrompt, options.messages);
 
 	yield* streamNvidiaResponse({
-		apiKey,
-		model,
-		messages: apiMessages,
-		maxTokens: 4096
+		apiKey: options.apiKey, model: options.model,
+		messages: apiMessages, maxTokens: 4096
 	});
 }
 
@@ -185,28 +151,16 @@ function buildAPIMessages(
 	systemPrompt: string,
 	messages: Message[]
 ): Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: ToolCall[] }> {
-	const apiMessages: Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: ToolCall[] }> = [
-		{ role: 'system', content: systemPrompt }
+	return [
+		{ role: 'system', content: systemPrompt },
+		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
 	];
-
-	for (const msg of messages) {
-		apiMessages.push({
-			role: msg.role,
-			content: msg.content
-		});
-	}
-
-	return apiMessages;
 }
 
 function mapToolToStep(toolName: string): AgentStep['type'] {
 	const map: Record<string, AgentStep['type']> = {
-		read_file: 'read_file',
-		write_file: 'write_file',
-		edit_file: 'edit_file',
-		run_command: 'run_command',
-		search_files: 'search_files',
-		create_pr: 'create_pr'
+		read_file: 'read_file', write_file: 'write_file', edit_file: 'edit_file',
+		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr'
 	};
 	return map[toolName] || 'think';
 }
