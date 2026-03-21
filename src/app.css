@@ -61,6 +61,11 @@
 		@apply inline-flex items-center justify-center gap-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-medium py-3 px-5 rounded-xl border border-zinc-700 hover:border-zinc-600 transition-all duration-200 select-none;
 	}
 
+	/* Icon button - compact action button inspired by open-webui */
+	.btn-icon {
+		@apply inline-flex items-center justify-center p-1.5 rounded-lg transition-all duration-150 cursor-pointer select-none hover:bg-black/5 dark:hover:bg-white/5;
+	}
+
 	/* Inputs */
 	.input-field {
 		@apply w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-150;
@@ -96,7 +101,7 @@
 		@apply badge bg-red-500/10 text-red-400 border border-red-500/20;
 	}
 
-	/* Prose/Markdown content */
+	/* Prose/Markdown content - inspired by chat-ui prose styling */
 	.prose-chat {
 		@apply text-zinc-200 leading-relaxed text-[15px];
 	}
@@ -107,8 +112,8 @@
 		@apply text-zinc-50 font-semibold mt-5 mb-2;
 	}
 
-	.prose-chat h1 { @apply text-xl; }
-	.prose-chat h2 { @apply text-lg; }
+	.prose-chat h1 { @apply text-lg; }
+	.prose-chat h2 { @apply text-base; }
 	.prose-chat h3 { @apply text-base; }
 
 	.prose-chat p {
@@ -116,7 +121,7 @@
 	}
 
 	.prose-chat code {
-		@apply bg-zinc-800 text-blue-300 px-1.5 py-0.5 rounded-md text-[13px] font-mono border border-zinc-700/50;
+		@apply bg-zinc-800/60 text-blue-300 px-[0.4em] py-[0.2em] rounded-md text-[85%] font-mono border border-zinc-700/50;
 	}
 
 	.prose-chat pre {
@@ -166,6 +171,10 @@
 	.prose-chat hr {
 		@apply border-zinc-800 my-4;
 	}
+
+	.prose-chat img {
+		@apply rounded-xl max-w-full my-3 cursor-pointer hover:opacity-90 transition-opacity;
+	}
 }
 
 @layer utilities {
@@ -183,10 +192,16 @@
 	.bg-radial-glow {
 		background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.08), transparent);
 	}
+
+	/* Gradient fade navbar - inspired by open-webui */
+	.navbar-gradient {
+		background: linear-gradient(to bottom, rgba(9, 9, 11, 0.95) 0%, rgba(9, 9, 11, 0.8) 50%, transparent 100%);
+	}
 }
 
 /* Code block styling (injected by markdown renderer) */
 :global(.code-block-wrapper) {
+	position: relative;
 	margin: 0.75rem 0;
 	border-radius: 0.75rem;
 	overflow: hidden;
@@ -201,6 +216,9 @@
 	padding: 0.5rem 0.75rem;
 	background: rgb(24, 24, 27);
 	border-bottom: 1px solid rgb(39, 39, 42);
+	position: sticky;
+	top: 0;
+	z-index: 1;
 }
 
 :global(.code-block-lang) {
@@ -245,3 +263,52 @@
 	border-radius: 0.75rem;
 	border: 1px solid rgb(39, 39, 42);
 }
+
+/* Stop generating button - spinning ring from chat-ui */
+:global(.stop-btn) {
+	position: relative;
+}
+
+:global(.stop-btn::after) {
+	content: "";
+	position: absolute;
+	inset: -2px;
+	border-radius: inherit;
+	pointer-events: none;
+	background: conic-gradient(
+		from 0deg,
+		transparent 0deg 240deg,
+		rgba(59, 130, 246, 0.8) 240deg 360deg
+	);
+	mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+	animation: stop-rotate 1.2s linear infinite;
+}
+
+@keyframes stop-rotate {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Paste glow effect - inspired by chat-ui */
+@keyframes paste-glow {
+	0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+	50% { box-shadow: 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+	100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+:global(.paste-glow) {
+	animation: paste-glow 0.6s ease-out;
+}
+
+/* Thinking indicator dots - inspired by chat-ui loading animation */
+@keyframes thinking-dot {
+	0%, 100% { opacity: 0.3; transform: translateY(0); }
+	50% { opacity: 1; transform: translateY(-3px); }
+}
+
+:global(.thinking-dot) {
+	animation: thinking-dot 1.2s ease-in-out infinite;
+}
+
+:global(.thinking-dot:nth-child(2)) { animation-delay: 0.2s; }
+:global(.thinking-dot:nth-child(3)) { animation-delay: 0.4s; }

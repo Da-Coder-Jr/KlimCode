@@ -8,6 +8,16 @@ export default {
 				sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 				mono: ['JetBrains Mono', 'Fira Code', 'monospace']
 			},
+			fontSize: {
+				xxs: '0.625rem',
+				smd: '0.94rem'
+			},
+			colors: {
+				zinc: {
+					750: '#323843',
+					850: '#1b1f27'
+				}
+			},
 			animation: {
 				'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
 				'slide-up': 'slideUp 0.3s ease-out',

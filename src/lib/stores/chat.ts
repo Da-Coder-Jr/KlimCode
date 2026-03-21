@@ -10,6 +10,18 @@ export const agentSteps = writable<AgentStep[]>([]);
 export const inputMessage = writable('');
 export const error = writable<string | null>(null);
 
+// AbortController for stopping generation - inspired by chat-ui/open-webui stop button
+let currentAbortController: AbortController | null = null;
+
+export function stopStreaming(): void {
+	if (currentAbortController) {
+		currentAbortController.abort();
+		currentAbortController = null;
+	}
+	isStreaming.set(false);
+	streamingContent.set('');
+}
+
 export const activeConversation = derived(
 	[conversations, activeConversationId],
 	([$conversations, $activeId]) => {
@@ -112,8 +124,10 @@ export async function sendMessage(content: string): Promise<void> {
 	error.set(null);
 
 	try {
+		currentAbortController = new AbortController();
 		const endpoint = conv.mode === 'agent' ? '/api/agent' : '/api/chat';
 		const res = await fetch(endpoint, {
+			signal: currentAbortController.signal,
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -208,8 +222,13 @@ export async function sendMessage(content: string): Promise<void> {
 			renameConversation(convId, title);
 		}
 	} catch (err) {
-		error.set(err instanceof Error ? err.message : 'Failed to send message');
+		if (err instanceof DOMException && err.name === 'AbortError') {
+			// User cancelled - not an error
+		} else {
+			error.set(err instanceof Error ? err.message : 'Failed to send message');
+		}
 	} finally {
+		currentAbortController = null;
 		isStreaming.set(false);
 		streamingContent.set('');
 	}

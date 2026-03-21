@@ -8,7 +8,7 @@
 	import { checkGitHubConnection } from '$stores/github';
 	import Sidebar from '$components/layout/Sidebar.svelte';
 
-	let sidebarOpen = true;
+	let isNavCollapsed = false;
 	let mobileSidebarOpen = false;
 	let initialized = false;
 
@@ -23,14 +23,23 @@
 		}
 		initialized = true;
 
-		// Restore sidebar state
 		const saved = localStorage.getItem('klimcode_sidebar');
-		if (saved !== null) sidebarOpen = saved === 'true';
+		if (saved !== null) isNavCollapsed = saved === 'true';
+
+		// Global keyboard shortcuts (inspired by chat-ui)
+		function handleGlobalKeys(e: KeyboardEvent) {
+			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'o') {
+				e.preventDefault();
+				// New chat shortcut
+			}
+		}
+		window.addEventListener('keydown', handleGlobalKeys);
+		return () => window.removeEventListener('keydown', handleGlobalKeys);
 	});
 
-	function toggleSidebar() {
-		sidebarOpen = !sidebarOpen;
-		localStorage.setItem('klimcode_sidebar', String(sidebarOpen));
+	function toggleNav() {
+		isNavCollapsed = !isNavCollapsed;
+		localStorage.setItem('klimcode_sidebar', String(isNavCollapsed));
 	}
 
 	function toggleMobileSidebar() {
@@ -58,17 +67,23 @@
 		</div>
 	</div>
 {:else}
-	<div class="h-screen h-[100dvh] flex overflow-hidden bg-zinc-950">
+	<!-- Grid-based layout inspired by HuggingFace chat-ui -->
+	<div
+		class="fixed grid h-dvh w-screen overflow-hidden text-[15px] dark:text-zinc-300 bg-zinc-950
+			{showSidebar
+				? isNavCollapsed
+					? 'grid-cols-1 md:grid-cols-[0px,1fr]'
+					: 'grid-cols-1 md:grid-cols-[280px,1fr]'
+				: 'grid-cols-1'}
+			transition-[grid-template-columns] duration-300 ease-in-out md:grid-rows-[1fr]"
+	>
 		{#if showSidebar}
-			<!-- Desktop Sidebar -->
-			<div
-				class="hidden md:flex flex-shrink-0 transition-all duration-300 ease-in-out"
-				style="width: {sidebarOpen ? '260px' : '0px'}"
-			>
-				{#if sidebarOpen}
-					<Sidebar onClose={toggleSidebar} />
-				{/if}
-			</div>
+			<!-- Desktop Sidebar - grid-based collapse -->
+			<nav class="hidden md:grid max-h-dvh grid-cols-1 grid-rows-[1fr] overflow-hidden">
+				<div class="w-[280px]">
+					<Sidebar onClose={toggleNav} />
+				</div>
+			</nav>
 
 			<!-- Mobile Sidebar Overlay -->
 			{#if mobileSidebarOpen}
@@ -85,20 +100,22 @@
 			{/if}
 		{/if}
 
-		<main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+		<!-- Main content area -->
+		<main class="flex flex-col min-w-0 h-full overflow-hidden relative">
 			{#if showSidebar}
-				<!-- Sidebar toggle buttons -->
-				{#if !sidebarOpen}
+				<!-- Sidebar toggle for collapsed state -->
+				{#if isNavCollapsed}
 					<button
-						on:click={toggleSidebar}
+						on:click={toggleNav}
 						class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
-						title="Open sidebar"
+						title="Open sidebar (Ctrl+Shift+O)"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
 						</svg>
 					</button>
 				{/if}
+				<!-- Mobile toggle always visible -->
 				<button
 					on:click={toggleMobileSidebar}
 					class="md:hidden absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"

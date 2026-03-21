@@ -53,7 +53,7 @@
 {:else}
 	<div class="flex-1 flex flex-col items-center justify-center h-full overflow-y-auto bg-radial-glow">
 		<div class="w-full max-w-2xl mx-auto px-4 py-8">
-			<!-- Hero -->
+			<!-- Hero - polished, inspired by chat-ui + open-webui welcome screens -->
 			<div class="text-center mb-10">
 				<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium mb-6">
 					<div class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
@@ -67,7 +67,7 @@
 				</p>
 			</div>
 
-			<!-- Main Input -->
+			<!-- Main Input - chat-ui inspired with rounded container -->
 			<div class="relative mb-8">
 				<div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-700 transition-all shadow-lg shadow-black/20">
 					<textarea
@@ -76,7 +76,7 @@
 						placeholder="Ask anything about code..."
 						rows="3"
 						class="w-full bg-transparent text-zinc-100 placeholder-zinc-600 resize-none px-1 py-1 focus:outline-none text-[15px] leading-relaxed"
-					/>
+					></textarea>
 					<div class="flex items-center justify-between pt-1">
 						<div class="flex items-center gap-2">
 							<button
@@ -98,19 +98,19 @@
 									: 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}"
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
 							</svg>
 						</button>
 					</div>
 				</div>
 			</div>
 
-			<!-- Suggestion Cards -->
+			<!-- Suggestion Cards - clean grid -->
 			<div class="grid grid-cols-2 gap-2.5 mb-10">
 				{#each suggestions as s}
 					<button
 						on:click={() => { messageInput = s.text; }}
-						class="p-3.5 rounded-xl border border-zinc-800/80 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/60 text-left transition-all duration-200 group"
+						class="group p-3.5 rounded-xl border border-zinc-800/80 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/60 text-left transition-all duration-200"
 					>
 						<span class="text-[13px] text-zinc-500 group-hover:text-zinc-300 leading-snug transition-colors">{s.text}</span>
 					</button>
