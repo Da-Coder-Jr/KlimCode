@@ -17,7 +17,7 @@ const config = {
 			$types: 'src/lib/types'
 		},
 		csrf: {
-			checkOrigin: true
+			trustedOrigins: ['self']
 		}
 	}
 };

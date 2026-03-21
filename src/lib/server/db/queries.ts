@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import crypto from 'crypto';
 import { query, queryOne, queryMany, ensureDb } from './index';
 import type { User, Session, Conversation, Message } from '$types/core';
 
@@ -6,7 +6,7 @@ import type { User, Session, Conversation, Message } from '$types/core';
 
 export async function createUser(username: string, displayName: string, passwordHash?: string): Promise<User> {
 	await ensureDb();
-	const id = uuid();
+	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
 	await query(
@@ -63,8 +63,9 @@ export async function getPasswordHash(userId: string): Promise<string | null> {
 
 export async function createSession(userId: string): Promise<Session> {
 	await ensureDb();
-	const id = uuid();
-	const token = uuid() + '-' + uuid();
+	const id = crypto.randomUUID();
+	// Use crypto.randomBytes for a secure session token
+	const token = crypto.randomBytes(32).toString('hex');
 	const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
 	await query(
@@ -101,7 +102,7 @@ export async function deleteSession(token: string): Promise<void> {
 
 export async function createConversation(userId: string, mode: 'chat' | 'agent', model: string, title?: string): Promise<Conversation> {
 	await ensureDb();
-	const id = uuid();
+	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
 	await query(
@@ -181,7 +182,7 @@ export async function createMessage(
 	}
 ): Promise<Message> {
 	await ensureDb();
-	const id = uuid();
+	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
 	await query(
@@ -221,8 +222,13 @@ export async function getMessages(conversationId: string, limit = 100, offset = 
 
 export async function storeApiKey(userId: string, apiKey: string, label?: string): Promise<void> {
 	await ensureDb();
-	const id = uuid();
+	const id = crypto.randomUUID();
+	// Base64 encode - note: this is encoding, not encryption
+	// For production, use proper encryption with a secret key
 	const encrypted = Buffer.from(apiKey).toString('base64');
+
+	// Delete old keys first to avoid accumulation
+	await query("DELETE FROM api_keys WHERE user_id = $1 AND provider = 'nvidia'", [userId]);
 
 	await query(
 		'INSERT INTO api_keys (id, user_id, api_key_encrypted, label) VALUES ($1, $2, $3, $4)',
@@ -252,7 +258,7 @@ export async function saveGithubRepo(userId: string, repo: {
 	defaultBranch: string; isPrivate: boolean; cloneUrl: string;
 }): Promise<void> {
 	await ensureDb();
-	const id = uuid();
+	const id = crypto.randomUUID();
 	await query(
 		`INSERT INTO github_repos (id, user_id, full_name, name, owner, description, default_branch, is_private, clone_url)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

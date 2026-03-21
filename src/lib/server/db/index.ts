@@ -11,7 +11,14 @@ export function getPool() {
 
 export async function query(text: string, params: unknown[] = []) {
 	const p = getPool();
-	return p.query(text, params);
+	try {
+		return await p.query(text, params);
+	} catch (error) {
+		// Re-throw with more context
+		const msg = error instanceof Error ? error.message : String(error);
+		console.error(`DB query failed: ${msg}\nQuery: ${text.slice(0, 200)}`);
+		throw error;
+	}
 }
 
 export async function queryOne<T = Record<string, unknown>>(
@@ -33,6 +40,7 @@ export async function queryMany<T = Record<string, unknown>>(
 export async function initializeDatabase(): Promise<void> {
 	const p = getPool();
 
+	// Create all tables in a single connection
 	await p.query(`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
@@ -115,17 +123,37 @@ export async function initializeDatabase(): Promise<void> {
 		)
 	`);
 
-	// Create indexes (IF NOT EXISTS works in Postgres)
+	// Create indexes
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
+	await p.query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`);
+	await p.query(`CREATE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)`);
 }
 
 // Run migrations on first request
 let initialized = false;
+let initPromise: Promise<void> | null = null;
+
 export async function ensureDb(): Promise<void> {
 	if (initialized) return;
-	await initializeDatabase();
-	initialized = true;
+
+	// Prevent concurrent initialization attempts
+	if (initPromise) {
+		await initPromise;
+		return;
+	}
+
+	initPromise = initializeDatabase()
+		.then(() => {
+			initialized = true;
+		})
+		.catch((error) => {
+			initPromise = null;
+			console.error('Database initialization failed:', error);
+			throw error;
+		});
+
+	await initPromise;
 }

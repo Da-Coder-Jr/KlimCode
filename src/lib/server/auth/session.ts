@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User, Session } from '$types/core';
 import {
@@ -15,29 +16,44 @@ const SESSION_COOKIE = 'klimcode_session';
 const SALT_ROUNDS = 10;
 
 export async function register(username: string, password: string, displayName?: string): Promise<{ user: User; session: Session }> {
-	const existing = await getUserByUsername(username);
-	if (existing) {
-		throw new AuthError('Username already taken', 'USERNAME_EXISTS');
+	// Input validation
+	const cleanUsername = username.trim().toLowerCase();
+
+	if (cleanUsername.length < 3 || cleanUsername.length > 32) {
+		throw new AuthError('Username must be 3-32 characters', 'INVALID_USERNAME');
 	}
 
-	if (username.length < 3 || username.length > 32) {
-		throw new AuthError('Username must be 3-32 characters', 'INVALID_USERNAME');
+	if (!/^[a-z0-9_-]+$/.test(cleanUsername)) {
+		throw new AuthError('Username can only contain letters, numbers, hyphens, and underscores', 'INVALID_USERNAME');
 	}
 
 	if (password.length < 6) {
 		throw new AuthError('Password must be at least 6 characters', 'WEAK_PASSWORD');
 	}
 
+	if (password.length > 128) {
+		throw new AuthError('Password is too long', 'WEAK_PASSWORD');
+	}
+
+	const existing = await getUserByUsername(cleanUsername);
+	if (existing) {
+		throw new AuthError('Username already taken', 'USERNAME_EXISTS');
+	}
+
 	const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-	const user = await createUser(username, displayName || username, passwordHash);
+	const user = await createUser(cleanUsername, displayName || cleanUsername, passwordHash);
 	const session = await createSession(user.id);
 
 	return { user, session };
 }
 
 export async function login(username: string, password: string): Promise<{ user: User; session: Session }> {
-	const user = await getUserByUsername(username);
+	const cleanUsername = username.trim().toLowerCase();
+
+	const user = await getUserByUsername(cleanUsername);
 	if (!user) {
+		// Constant-time comparison to prevent timing attacks
+		await bcrypt.hash(password, SALT_ROUNDS);
 		throw new AuthError('Invalid username or password', 'INVALID_CREDENTIALS');
 	}
 
