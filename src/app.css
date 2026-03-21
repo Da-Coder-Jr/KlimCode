@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: theme('colors.surface.700') transparent;
+	}
+
+	*::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	*::-webkit-scrollbar-thumb {
+		background-color: theme('colors.surface.700');
+		border-radius: 3px;
+	}
+
+	::selection {
+		background-color: theme('colors.klim.700');
+		color: white;
+	}
+
+	body {
+		overflow: hidden;
+		height: 100vh;
+	}
+}
+
+@layer components {
+	.btn-primary {
+		@apply bg-klim-600 hover:bg-klim-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-klim-500 focus:ring-offset-2 focus:ring-offset-surface-900 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	.btn-secondary {
+		@apply bg-surface-700 hover:bg-surface-600 text-surface-200 font-medium py-2 px-4 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 focus:ring-offset-surface-900 disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	.btn-ghost {
+		@apply hover:bg-surface-800 text-surface-300 hover:text-surface-100 font-medium py-2 px-4 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-surface-600;
+	}
+
+	.btn-danger {
+		@apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+	}
+
+	.input-field {
+		@apply bg-surface-800 border border-surface-600 rounded-lg px-3 py-2 text-surface-100 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-klim-500 focus:border-transparent transition-all duration-150;
+	}
+
+	.card {
+		@apply bg-surface-800/50 border border-surface-700 rounded-xl backdrop-blur-sm;
+	}
+
+	.card-hover {
+		@apply card hover:border-surface-600 hover:bg-surface-800/70 transition-all duration-200 cursor-pointer;
+	}
+
+	.badge {
+		@apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+	}
+
+	.badge-klim {
+		@apply badge bg-klim-900/50 text-klim-300 border border-klim-700/50;
+	}
+
+	.badge-success {
+		@apply badge bg-emerald-900/50 text-emerald-300 border border-emerald-700/50;
+	}
+
+	.badge-warning {
+		@apply badge bg-amber-900/50 text-amber-300 border border-amber-700/50;
+	}
+
+	.badge-error {
+		@apply badge bg-red-900/50 text-red-300 border border-red-700/50;
+	}
+
+	.prose-klim {
+		@apply text-surface-200 leading-relaxed;
+	}
+
+	.prose-klim h1,
+	.prose-klim h2,
+	.prose-klim h3 {
+		@apply text-surface-100 font-semibold mt-6 mb-3;
+	}
+
+	.prose-klim p {
+		@apply mb-4;
+	}
+
+	.prose-klim code {
+		@apply bg-surface-800 text-klim-300 px-1.5 py-0.5 rounded text-sm font-mono;
+	}
+
+	.prose-klim pre {
+		@apply bg-surface-900 border border-surface-700 rounded-lg p-4 overflow-x-auto mb-4;
+	}
+
+	.prose-klim pre code {
+		@apply bg-transparent p-0 text-surface-200;
+	}
+
+	.prose-klim ul,
+	.prose-klim ol {
+		@apply mb-4 pl-6;
+	}
+
+	.prose-klim li {
+		@apply mb-1;
+	}
+
+	.prose-klim a {
+		@apply text-klim-400 hover:text-klim-300 underline;
+	}
+
+	.prose-klim blockquote {
+		@apply border-l-4 border-klim-600 pl-4 italic text-surface-400 my-4;
+	}
+
+	.prose-klim table {
+		@apply w-full border-collapse mb-4;
+	}
+
+	.prose-klim th {
+		@apply bg-surface-800 text-left px-4 py-2 border border-surface-700 font-medium;
+	}
+
+	.prose-klim td {
+		@apply px-4 py-2 border border-surface-700;
+	}
+
+	.glow-klim {
+		box-shadow: 0 0 20px -5px theme('colors.klim.500 / 30%');
+	}
+
+	.glow-klim-lg {
+		box-shadow: 0 0 40px -10px theme('colors.klim.500 / 40%');
+	}
+}
+
+@layer utilities {
+	.text-gradient-klim {
+		@apply bg-clip-text text-transparent bg-gradient-to-r from-klim-400 to-klim-600;
+	}
+
+	.bg-mesh {
+		background-image:
+			radial-gradient(at 40% 20%, theme('colors.klim.950') 0px, transparent 50%),
+			radial-gradient(at 80% 0%, theme('colors.surface.800') 0px, transparent 50%),
+			radial-gradient(at 0% 50%, theme('colors.klim.950 / 50%') 0px, transparent 50%);
+	}
+}
