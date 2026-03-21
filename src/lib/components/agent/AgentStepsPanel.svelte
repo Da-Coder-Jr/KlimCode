@@ -35,52 +35,51 @@
 			case 'running': return 'text-amber-400';
 			case 'completed': return 'text-emerald-400';
 			case 'failed': return 'text-red-400';
-			default: return 'text-surface-400';
+			default: return 'text-zinc-500';
 		}
 	}
 
 	function getStatusBg(status: string): string {
 		switch (status) {
-			case 'running': return 'bg-amber-500/10 border-amber-500/20';
-			case 'completed': return 'bg-emerald-500/10 border-emerald-500/20';
-			case 'failed': return 'bg-red-500/10 border-red-500/20';
-			default: return 'bg-surface-800 border-surface-700';
+			case 'running': return 'bg-amber-500/5 border-amber-500/15';
+			case 'completed': return 'bg-emerald-500/5 border-emerald-500/15';
+			case 'failed': return 'bg-red-500/5 border-red-500/15';
+			default: return 'bg-zinc-900 border-zinc-800';
 		}
 	}
 </script>
 
-<div class="h-full flex flex-col bg-surface-900">
-	<div class="px-4 py-3 border-b border-surface-700 flex items-center justify-between">
-		<h3 class="text-sm font-medium text-surface-200 flex items-center gap-2">
-			<svg class="w-4 h-4 text-klim-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+<div class="h-full flex flex-col">
+	<div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+		<h3 class="text-sm font-medium text-zinc-200 flex items-center gap-2">
+			<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
 			</svg>
 			Agent Activity
 		</h3>
 		{#if steps.length > 0}
-			<span class="text-xs text-surface-500">{steps.length} steps</span>
+			<span class="text-[11px] text-zinc-600">{steps.length} steps</span>
 		{/if}
 	</div>
 
-	<div class="flex-1 overflow-y-auto p-3 space-y-2">
+	<div class="flex-1 overflow-y-auto p-3 space-y-1.5">
 		{#if steps.length === 0}
-			<div class="text-center text-surface-500 text-sm py-8">
-				<svg class="w-8 h-8 mx-auto mb-3 text-surface-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+			<div class="text-center text-zinc-600 text-sm py-8">
+				<svg class="w-8 h-8 mx-auto mb-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
 				</svg>
-				Agent steps will appear here as the AI works
+				Agent steps will appear here
 			</div>
 		{:else}
 			{#each steps as step (step.id)}
 				<div
-					class="rounded-lg border {getStatusBg(step.status)} overflow-hidden"
+					class="rounded-xl border {getStatusBg(step.status)} overflow-hidden"
 					transition:slide={{ duration: 200 }}
 				>
 					<button
 						on:click={() => toggleStep(step.id)}
 						class="w-full px-3 py-2 flex items-center gap-2 text-left"
 					>
-						<!-- Status Indicator -->
 						{#if step.status === 'running'}
 							<div class="w-4 h-4 flex-shrink-0">
 								<svg class="w-4 h-4 text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -90,20 +89,20 @@
 							</div>
 						{:else}
 							<svg class="w-4 h-4 flex-shrink-0 {getStatusColor(step.status)}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getStepIcon(step.type)} />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
 							</svg>
 						{/if}
 
-						<span class="text-xs text-surface-200 flex-1 truncate">{step.description}</span>
+						<span class="text-xs text-zinc-300 flex-1 truncate">{step.description}</span>
 
 						{#if step.completedAt && step.startedAt}
-							<span class="text-xs text-surface-500">
+							<span class="text-[10px] text-zinc-600 font-mono">
 								{formatDuration(new Date(step.completedAt).getTime() - new Date(step.startedAt).getTime())}
 							</span>
 						{/if}
 
 						<svg
-							class="w-3 h-3 text-surface-500 transition-transform"
+							class="w-3 h-3 text-zinc-600 transition-transform"
 							class:rotate-180={expandedSteps.has(step.id)}
 							fill="none" stroke="currentColor" viewBox="0 0 24 24"
 						>
@@ -112,8 +111,8 @@
 					</button>
 
 					{#if expandedSteps.has(step.id) && (step.result || step.error)}
-						<div class="px-3 pb-3 border-t border-surface-700/50" transition:slide={{ duration: 150 }}>
-							<pre class="text-xs text-surface-400 whitespace-pre-wrap break-all mt-2 max-h-48 overflow-y-auto font-mono leading-relaxed">{step.error || step.result}</pre>
+						<div class="px-3 pb-3 border-t border-zinc-800/50" transition:slide={{ duration: 150 }}>
+							<pre class="text-[11px] text-zinc-500 whitespace-pre-wrap break-all mt-2 max-h-48 overflow-y-auto font-mono leading-relaxed">{step.error || step.result}</pre>
 						</div>
 					{/if}
 				</div>

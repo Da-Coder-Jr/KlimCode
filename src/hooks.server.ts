@@ -1,30 +1,35 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSessionFromRequest } from '$server/auth/session';
+import { ensureDb } from '$server/db/index';
+
+// Initialize database tables on first request
+let dbReady = false;
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Skip auth check for static assets
-	if (event.url.pathname.startsWith('/_app/') || event.url.pathname.startsWith('/favicon')) {
-		return resolve(event);
+	// Ensure database is initialized
+	if (!dbReady) {
+		try {
+			await ensureDb();
+			dbReady = true;
+		} catch (err) {
+			console.error('[KlimCode] Database initialization failed:', err);
+			// Continue anyway - individual queries will retry
+		}
 	}
 
+	// Authenticate session
 	try {
 		const session = await getSessionFromRequest(event);
 		if (session) {
 			event.locals.user = session.user;
 			event.locals.session = session.session;
 		}
-	} catch (error) {
-		// Log but don't crash on auth errors (e.g., DB cold start)
-		console.error('Auth check failed:', error);
+	} catch (err) {
+		console.error('[KlimCode] Session auth error:', err);
+		// Clear potentially corrupted session cookie
+		event.cookies.delete('klimcode_session', { path: '/' });
 	}
 
 	const response = await resolve(event);
-
-	// Security headers
-	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('X-Frame-Options', 'DENY');
-	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-
 	return response;
 };

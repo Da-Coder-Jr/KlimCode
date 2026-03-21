@@ -12,7 +12,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 			username: locals.user.username,
 			displayName: locals.user.displayName,
 			avatarUrl: locals.user.avatarUrl,
-			githubId: locals.user.githubId
+			githubId: locals.user.githubId,
+			githubUsername: locals.user.githubUsername
 		}
 	});
 };

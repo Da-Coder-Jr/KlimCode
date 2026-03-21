@@ -15,9 +15,6 @@ const config = {
 			$stores: 'src/lib/stores',
 			$utils: 'src/lib/utils',
 			$types: 'src/lib/types'
-		},
-		csrf: {
-			trustedOrigins: ['self']
 		}
 	}
 };

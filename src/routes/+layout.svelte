@@ -8,7 +8,7 @@
 	import { checkGitHubConnection } from '$stores/github';
 	import Sidebar from '$components/layout/Sidebar.svelte';
 
-	let sidebarCollapsed = false;
+	let sidebarOpen = true;
 	let mobileSidebarOpen = false;
 	let initialized = false;
 
@@ -22,71 +22,93 @@
 			]);
 		}
 		initialized = true;
+
+		// Restore sidebar state
+		const saved = localStorage.getItem('klimcode_sidebar');
+		if (saved !== null) sidebarOpen = saved === 'true';
 	});
 
-	$: isAuthPage = $page.url.pathname === '/login';
-	$: showSidebar = $currentUser && !isAuthPage;
+	function toggleSidebar() {
+		sidebarOpen = !sidebarOpen;
+		localStorage.setItem('klimcode_sidebar', String(sidebarOpen));
+	}
+
+	function toggleMobileSidebar() {
+		mobileSidebarOpen = !mobileSidebarOpen;
+	}
 
 	function closeMobileSidebar() {
 		mobileSidebarOpen = false;
 	}
 
-	// Close mobile sidebar on navigation
-	$: if ($page.url.pathname) {
-		mobileSidebarOpen = false;
-	}
+	$: showSidebar = !!$currentUser;
 </script>
 
-<svelte:head>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-</svelte:head>
-
 {#if !initialized}
-	<div class="flex items-center justify-center h-screen bg-surface-950">
+	<!-- Loading screen -->
+	<div class="flex items-center justify-center h-screen bg-zinc-950">
 		<div class="text-center animate-fade-in">
-			<div class="relative inline-flex mb-5">
-				<div class="w-14 h-14 bg-gradient-to-br from-klim-400 via-klim-600 to-klim-800 rounded-2xl flex items-center justify-center shadow-glow animate-pulse-slow">
+			<div class="relative">
+				<div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20">
 					<span class="text-white font-bold text-xl">K</span>
 				</div>
+				<div class="absolute inset-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 mx-auto animate-ping opacity-20"></div>
 			</div>
-			<div class="flex items-center justify-center gap-1.5 text-surface-500 text-sm">
-				<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-				</svg>
-				Loading...
-			</div>
+			<p class="text-zinc-500 text-sm mt-4 font-medium">Loading KlimCode...</p>
 		</div>
 	</div>
 {:else}
-	<div class="h-screen h-[100dvh] flex overflow-hidden bg-surface-950">
+	<div class="h-screen h-[100dvh] flex overflow-hidden bg-zinc-950">
 		{#if showSidebar}
-			<!-- Desktop sidebar -->
-			<div class="hidden lg:block flex-shrink-0">
-				<Sidebar bind:collapsed={sidebarCollapsed} />
+			<!-- Desktop Sidebar -->
+			<div
+				class="hidden md:flex flex-shrink-0 transition-all duration-300 ease-in-out"
+				style="width: {sidebarOpen ? '260px' : '0px'}"
+			>
+				{#if sidebarOpen}
+					<Sidebar onClose={toggleSidebar} />
+				{/if}
 			</div>
 
-			<!-- Mobile sidebar overlay -->
+			<!-- Mobile Sidebar Overlay -->
 			{#if mobileSidebarOpen}
-				<div class="lg:hidden fixed inset-0 z-50 flex">
-					<!-- Backdrop -->
+				<div class="fixed inset-0 z-50 md:hidden">
 					<button
-						class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+						class="absolute inset-0 bg-black/60 backdrop-blur-sm"
 						on:click={closeMobileSidebar}
-						tabindex="-1"
 						aria-label="Close sidebar"
 					></button>
-					<!-- Sidebar -->
-					<div class="relative w-72 animate-slide-up">
-						<Sidebar collapsed={false} on:close={closeMobileSidebar} />
+					<div class="absolute left-0 top-0 bottom-0 w-[280px] animate-slide-down">
+						<Sidebar onClose={closeMobileSidebar} />
 					</div>
 				</div>
 			{/if}
 		{/if}
 
-		<main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+		<main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+			{#if showSidebar}
+				<!-- Sidebar toggle buttons -->
+				{#if !sidebarOpen}
+					<button
+						on:click={toggleSidebar}
+						class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
+						title="Open sidebar"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+						</svg>
+					</button>
+				{/if}
+				<button
+					on:click={toggleMobileSidebar}
+					class="md:hidden absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
+					title="Open sidebar"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+					</svg>
+				</button>
+			{/if}
 			<slot />
 		</main>
 	</div>

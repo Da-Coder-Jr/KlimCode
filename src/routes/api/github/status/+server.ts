@@ -8,6 +8,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	return json({
 		connected: !!locals.user.githubId,
-		username: locals.user.username
+		username: locals.user.githubUsername || locals.user.username,
+		avatarUrl: locals.user.avatarUrl
 	});
 };

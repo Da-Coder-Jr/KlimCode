@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User, Session } from '$types/core';
 import {
@@ -13,10 +12,10 @@ import {
 } from '$server/db/queries';
 
 const SESSION_COOKIE = 'klimcode_session';
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 export async function register(username: string, password: string, displayName?: string): Promise<{ user: User; session: Session }> {
-	// Input validation
+	// Sanitize username
 	const cleanUsername = username.trim().toLowerCase();
 
 	if (cleanUsername.length < 3 || cleanUsername.length > 32) {
@@ -27,12 +26,8 @@ export async function register(username: string, password: string, displayName?:
 		throw new AuthError('Username can only contain letters, numbers, hyphens, and underscores', 'INVALID_USERNAME');
 	}
 
-	if (password.length < 6) {
-		throw new AuthError('Password must be at least 6 characters', 'WEAK_PASSWORD');
-	}
-
-	if (password.length > 128) {
-		throw new AuthError('Password is too long', 'WEAK_PASSWORD');
+	if (password.length < 8) {
+		throw new AuthError('Password must be at least 8 characters', 'WEAK_PASSWORD');
 	}
 
 	const existing = await getUserByUsername(cleanUsername);
@@ -41,7 +36,7 @@ export async function register(username: string, password: string, displayName?:
 	}
 
 	const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-	const user = await createUser(cleanUsername, displayName || cleanUsername, passwordHash);
+	const user = await createUser(cleanUsername, displayName?.trim() || cleanUsername, passwordHash);
 	const session = await createSession(user.id);
 
 	return { user, session };
@@ -52,8 +47,8 @@ export async function login(username: string, password: string): Promise<{ user:
 
 	const user = await getUserByUsername(cleanUsername);
 	if (!user) {
-		// Constant-time comparison to prevent timing attacks
-		await bcrypt.hash(password, SALT_ROUNDS);
+		// Constant-time delay to prevent username enumeration
+		await bcrypt.hash('dummy', SALT_ROUNDS);
 		throw new AuthError('Invalid username or password', 'INVALID_CREDENTIALS');
 	}
 
@@ -78,6 +73,9 @@ export async function logout(token: string): Promise<void> {
 export async function getSessionFromRequest(event: RequestEvent): Promise<{ user: User; session: Session } | null> {
 	const token = event.cookies.get(SESSION_COOKIE);
 	if (!token) return null;
+
+	// Basic token format validation
+	if (token.length < 30 || token.length > 200) return null;
 
 	const session = await getSessionByToken(token);
 	if (!session) return null;

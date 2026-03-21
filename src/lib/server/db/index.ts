@@ -13,11 +13,10 @@ export async function query(text: string, params: unknown[] = []) {
 	const p = getPool();
 	try {
 		return await p.query(text, params);
-	} catch (error) {
-		// Re-throw with more context
-		const msg = error instanceof Error ? error.message : String(error);
-		console.error(`DB query failed: ${msg}\nQuery: ${text.slice(0, 200)}`);
-		throw error;
+	} catch (err) {
+		console.error('[KlimCode DB] Query error:', (err as Error).message);
+		console.error('[KlimCode DB] Query:', text.slice(0, 100));
+		throw err;
 	}
 }
 
@@ -40,7 +39,8 @@ export async function queryMany<T = Record<string, unknown>>(
 export async function initializeDatabase(): Promise<void> {
 	const p = getPool();
 
-	// Create all tables in a single connection
+	console.log('[KlimCode] Initializing database tables...');
+
 	await p.query(`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
@@ -50,6 +50,7 @@ export async function initializeDatabase(): Promise<void> {
 			password_hash TEXT,
 			github_id TEXT UNIQUE,
 			github_token TEXT,
+			github_username TEXT,
 			settings_json TEXT DEFAULT '{}',
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -129,31 +130,22 @@ export async function initializeDatabase(): Promise<void> {
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`);
-	await p.query(`CREATE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)`);
+	await p.query(`CREATE INDEX IF NOT EXISTS idx_users_github ON users(github_id)`);
+
+	// Add github_username column if it doesn't exist (migration)
+	try {
+		await p.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username TEXT`);
+	} catch {
+		// Column might already exist, ignore
+	}
+
+	console.log('[KlimCode] Database initialized successfully');
 }
 
 // Run migrations on first request
 let initialized = false;
-let initPromise: Promise<void> | null = null;
-
 export async function ensureDb(): Promise<void> {
 	if (initialized) return;
-
-	// Prevent concurrent initialization attempts
-	if (initPromise) {
-		await initPromise;
-		return;
-	}
-
-	initPromise = initializeDatabase()
-		.then(() => {
-			initialized = true;
-		})
-		.catch((error) => {
-			initPromise = null;
-			console.error('Database initialization failed:', error);
-			throw error;
-		});
-
-	await initPromise;
+	await initializeDatabase();
+	initialized = true;
 }

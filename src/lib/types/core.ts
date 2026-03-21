@@ -5,6 +5,7 @@ export interface User {
 	avatarUrl?: string;
 	githubId?: string;
 	githubToken?: string;
+	githubUsername?: string;
 	createdAt: string;
 	updatedAt: string;
 }

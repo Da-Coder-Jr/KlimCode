@@ -42,12 +42,12 @@ export async function getUserByGithubId(githubId: string): Promise<User | null> 
 	return row ? mapUser(row) : null;
 }
 
-export async function updateUserGithub(userId: string, githubId: string, githubToken: string, avatarUrl?: string): Promise<void> {
+export async function updateUserGithub(userId: string, githubId: string, githubToken: string, avatarUrl?: string, githubUsername?: string): Promise<void> {
 	await ensureDb();
 	await query(
-		`UPDATE users SET github_id = $1, github_token = $2, avatar_url = COALESCE($3, avatar_url), updated_at = CURRENT_TIMESTAMP
-		 WHERE id = $4`,
-		[githubId, githubToken, avatarUrl || null, userId]
+		`UPDATE users SET github_id = $1, github_token = $2, avatar_url = COALESCE($3, avatar_url), github_username = COALESCE($4, github_username), updated_at = CURRENT_TIMESTAMP
+		 WHERE id = $5`,
+		[githubId, githubToken, avatarUrl || null, githubUsername || null, userId]
 	);
 }
 
@@ -285,6 +285,7 @@ function mapUser(row: Record<string, unknown>): User {
 		avatarUrl: row.avatar_url as string | undefined,
 		githubId: row.github_id as string | undefined,
 		githubToken: row.github_token as string | undefined,
+		githubUsername: row.github_username as string | undefined,
 		createdAt: String(row.created_at),
 		updatedAt: String(row.updated_at)
 	};

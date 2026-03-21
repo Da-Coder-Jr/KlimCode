@@ -23,21 +23,51 @@ export function getGitHubAuthUrl(clientId: string, redirectUri: string, state?: 
 export async function exchangeGitHubCode(code: string, clientId: string, clientSecret: string): Promise<string> {
 	const response = await fetch(GITHUB_TOKEN_URL, {
 		method: 'POST',
-		headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-		body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code })
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			client_id: clientId,
+			client_secret: clientSecret,
+			code
+		})
 	});
 
-	if (!response.ok) throw new Error(`GitHub token exchange failed: ${response.status}`);
+	if (!response.ok) {
+		const text = await response.text();
+		console.error('[KlimCode] GitHub token exchange HTTP error:', response.status, text);
+		throw new Error(`GitHub token exchange failed: ${response.status}`);
+	}
+
 	const data = await response.json();
-	if (data.error) throw new Error(`GitHub OAuth error: ${data.error_description || data.error}`);
+	if (data.error) {
+		console.error('[KlimCode] GitHub token exchange error:', data.error, data.error_description);
+		throw new Error(`GitHub OAuth error: ${data.error_description || data.error}`);
+	}
+
+	if (!data.access_token) {
+		console.error('[KlimCode] GitHub token exchange: no access_token in response');
+		throw new Error('GitHub OAuth: no access token received');
+	}
+
 	return data.access_token;
 }
 
 export async function getGitHubUser(accessToken: string) {
 	const response = await fetch(GITHUB_USER_URL, {
-		headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.github.v3+json' }
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+			Accept: 'application/vnd.github.v3+json'
+		}
 	});
-	if (!response.ok) throw new Error(`GitHub user API failed: ${response.status}`);
+
+	if (!response.ok) {
+		const text = await response.text();
+		console.error('[KlimCode] GitHub user API error:', response.status, text);
+		throw new Error(`GitHub user API failed: ${response.status}`);
+	}
+
 	return response.json();
 }
 
@@ -48,16 +78,26 @@ export async function authenticateWithGitHub(
 	const ghUser = await getGitHubUser(accessToken);
 	const githubId = String(ghUser.id);
 
+	console.log('[KlimCode] GitHub user:', { login: ghUser.login, id: githubId });
+
 	let user = await getUserByGithubId(githubId);
 	let isNew = false;
 
 	if (!user) {
+		// Create new user with GitHub login as username
 		user = await createUser(ghUser.login, ghUser.name || ghUser.login);
 		isNew = true;
 	}
 
-	await updateUserGithub(user.id, githubId, accessToken, ghUser.avatar_url);
-	user = { ...user, githubId, githubToken: accessToken, avatarUrl: ghUser.avatar_url };
+	// Update GitHub info including the GitHub username
+	await updateUserGithub(user.id, githubId, accessToken, ghUser.avatar_url, ghUser.login);
+	user = {
+		...user,
+		githubId,
+		githubToken: accessToken,
+		avatarUrl: ghUser.avatar_url,
+		githubUsername: ghUser.login
+	};
 
 	const session = await createSession(user.id);
 	return { user, session, isNew };
@@ -70,7 +110,12 @@ export async function fetchUserRepos(accessToken: string) {
 	while (page <= 5) {
 		const response = await fetch(
 			`https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator`,
-			{ headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.github.v3+json' } }
+			{
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: 'application/vnd.github.v3+json'
+				}
+			}
 		);
 		if (!response.ok) break;
 		const data = await response.json();

@@ -5,10 +5,18 @@ import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const clientId = env.GITHUB_CLIENT_ID;
+
 	if (!clientId) {
-		return json(
-			{ message: 'GitHub OAuth not configured. Set GITHUB_CLIENT_ID in Vercel environment variables.' },
-			{ status: 500 }
+		console.error('[KlimCode] GitHub OAuth not configured: GITHUB_CLIENT_ID is not set');
+		return new Response(
+			JSON.stringify({
+				error: 'GitHub OAuth not configured',
+				message: 'The GITHUB_CLIENT_ID environment variable is not set. Please configure it in your Vercel project settings.'
+			}),
+			{
+				status: 500,
+				headers: { 'Content-Type': 'application/json' }
+			}
 		);
 	}
 
@@ -16,12 +24,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const state = crypto.randomUUID();
 	const authUrl = getGitHubAuthUrl(clientId, redirectUri, state);
 
-	// Use 302 redirect response instead of throw to avoid SvelteKit error handling issues
-	return new Response(null, {
-		status: 302,
-		headers: {
-			Location: authUrl,
-			'Cache-Control': 'no-store'
-		}
-	});
+	console.log('[KlimCode] GitHub OAuth redirect:', { clientId: clientId.slice(0, 4) + '...', redirectUri });
+
+	throw redirect(302, authUrl);
 };
