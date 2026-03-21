@@ -15,7 +15,7 @@
 	$: isAgent = $activeConversation?.mode === 'agent';
 </script>
 
-<div class="flex h-full">
+<div class="flex h-full overflow-hidden">
 	<!-- Main Chat -->
 	<div class="flex-1 flex flex-col min-w-0">
 		<MessageList messages={$messages} />
@@ -24,7 +24,7 @@
 
 	<!-- Agent Side Panel -->
 	{#if isAgent && showAgentPanel}
-		<div class="w-80 xl:w-96 border-l border-surface-700 flex-shrink-0 overflow-hidden">
+		<div class="w-80 xl:w-96 border-l border-zinc-800 flex-shrink-0 overflow-hidden bg-zinc-900/50">
 			<AgentStepsPanel steps={$agentSteps} />
 		</div>
 	{/if}

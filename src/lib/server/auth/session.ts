@@ -12,32 +12,43 @@ import {
 } from '$server/db/queries';
 
 const SESSION_COOKIE = 'klimcode_session';
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 export async function register(username: string, password: string, displayName?: string): Promise<{ user: User; session: Session }> {
-	const existing = await getUserByUsername(username);
+	// Sanitize username
+	const cleanUsername = username.trim().toLowerCase();
+
+	if (cleanUsername.length < 3 || cleanUsername.length > 32) {
+		throw new AuthError('Username must be 3-32 characters', 'INVALID_USERNAME');
+	}
+
+	if (!/^[a-z0-9_-]+$/.test(cleanUsername)) {
+		throw new AuthError('Username can only contain letters, numbers, hyphens, and underscores', 'INVALID_USERNAME');
+	}
+
+	if (password.length < 8) {
+		throw new AuthError('Password must be at least 8 characters', 'WEAK_PASSWORD');
+	}
+
+	const existing = await getUserByUsername(cleanUsername);
 	if (existing) {
 		throw new AuthError('Username already taken', 'USERNAME_EXISTS');
 	}
 
-	if (username.length < 3 || username.length > 32) {
-		throw new AuthError('Username must be 3-32 characters', 'INVALID_USERNAME');
-	}
-
-	if (password.length < 6) {
-		throw new AuthError('Password must be at least 6 characters', 'WEAK_PASSWORD');
-	}
-
 	const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-	const user = await createUser(username, displayName || username, passwordHash);
+	const user = await createUser(cleanUsername, displayName?.trim() || cleanUsername, passwordHash);
 	const session = await createSession(user.id);
 
 	return { user, session };
 }
 
 export async function login(username: string, password: string): Promise<{ user: User; session: Session }> {
-	const user = await getUserByUsername(username);
+	const cleanUsername = username.trim().toLowerCase();
+
+	const user = await getUserByUsername(cleanUsername);
 	if (!user) {
+		// Constant-time delay to prevent username enumeration
+		await bcrypt.hash('dummy', SALT_ROUNDS);
 		throw new AuthError('Invalid username or password', 'INVALID_CREDENTIALS');
 	}
 
@@ -62,6 +73,9 @@ export async function logout(token: string): Promise<void> {
 export async function getSessionFromRequest(event: RequestEvent): Promise<{ user: User; session: Session } | null> {
 	const token = event.cookies.get(SESSION_COOKIE);
 	if (!token) return null;
+
+	// Basic token format validation
+	if (token.length < 30 || token.length > 200) return null;
 
 	const session = await getSessionByToken(token);
 	if (!session) return null;

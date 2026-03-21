@@ -9,10 +9,12 @@
 
 <Header />
 
-<div class="flex-1 overflow-y-auto p-6">
-	<div class="mb-8">
-		<h1 class="text-2xl font-bold text-surface-100">Settings</h1>
-		<p class="text-surface-400 text-sm mt-1">Configure KlimCode to your preferences</p>
+<div class="flex-1 overflow-y-auto">
+	<div class="max-w-2xl mx-auto px-4 py-8">
+		<div class="mb-8">
+			<h1 class="text-xl font-semibold text-zinc-50">Settings</h1>
+			<p class="text-zinc-500 text-sm mt-1">Configure your KlimCode experience</p>
+		</div>
+		<SettingsPanel />
 	</div>
-	<SettingsPanel />
 </div>

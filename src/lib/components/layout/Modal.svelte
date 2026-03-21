@@ -39,18 +39,18 @@
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="bg-surface-800 border border-surface-600 rounded-xl shadow-2xl w-full {sizeClasses[size]} animate-slide-up">
+		<div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/30 w-full {sizeClasses[size]} animate-slide-up">
 			{#if title}
-				<div class="flex items-center justify-between px-6 py-4 border-b border-surface-700">
-					<h2 class="text-lg font-semibold text-surface-100">{title}</h2>
-					<button on:click={handleClose} class="text-surface-400 hover:text-surface-200 p-1 rounded-lg hover:bg-surface-700">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+					<h2 class="text-[15px] font-semibold text-zinc-100">{title}</h2>
+					<button on:click={handleClose} class="text-zinc-500 hover:text-zinc-300 p-1 rounded-lg hover:bg-zinc-800 transition-all">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 						</svg>
 					</button>
 				</div>
 			{/if}
-			<div class="p-6">
+			<div class="p-5">
 				<slot />
 			</div>
 		</div>

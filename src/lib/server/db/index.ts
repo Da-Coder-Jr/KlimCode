@@ -11,7 +11,13 @@ export function getPool() {
 
 export async function query(text: string, params: unknown[] = []) {
 	const p = getPool();
-	return p.query(text, params);
+	try {
+		return await p.query(text, params);
+	} catch (err) {
+		console.error('[KlimCode DB] Query error:', (err as Error).message);
+		console.error('[KlimCode DB] Query:', text.slice(0, 100));
+		throw err;
+	}
 }
 
 export async function queryOne<T = Record<string, unknown>>(
@@ -33,6 +39,8 @@ export async function queryMany<T = Record<string, unknown>>(
 export async function initializeDatabase(): Promise<void> {
 	const p = getPool();
 
+	console.log('[KlimCode] Initializing database tables...');
+
 	await p.query(`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
@@ -42,6 +50,7 @@ export async function initializeDatabase(): Promise<void> {
 			password_hash TEXT,
 			github_id TEXT UNIQUE,
 			github_token TEXT,
+			github_username TEXT,
 			settings_json TEXT DEFAULT '{}',
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -115,11 +124,22 @@ export async function initializeDatabase(): Promise<void> {
 		)
 	`);
 
-	// Create indexes (IF NOT EXISTS works in Postgres)
+	// Create indexes
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
+	await p.query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`);
 	await p.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`);
+	await p.query(`CREATE INDEX IF NOT EXISTS idx_users_github ON users(github_id)`);
+
+	// Add github_username column if it doesn't exist (migration)
+	try {
+		await p.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username TEXT`);
+	} catch {
+		// Column might already exist, ignore
+	}
+
+	console.log('[KlimCode] Database initialized successfully');
 }
 
 // Run migrations on first request

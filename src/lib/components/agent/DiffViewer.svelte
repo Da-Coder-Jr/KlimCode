@@ -48,9 +48,9 @@
 	$: diffLines = parseDiff(diff);
 </script>
 
-<div class="rounded-lg border border-surface-700 overflow-hidden">
+<div class="rounded-lg border border-zinc-700 overflow-hidden">
 	{#if filename}
-		<div class="px-4 py-2 bg-surface-800 border-b border-surface-700 text-sm text-surface-300 font-mono">
+		<div class="px-4 py-2 bg-zinc-800 border-b border-zinc-700 text-sm text-zinc-300 font-mono">
 			{filename}
 		</div>
 	{/if}
@@ -62,25 +62,25 @@
 					<tr class="
 						{line.type === 'added' ? 'bg-emerald-950/30' : ''}
 						{line.type === 'removed' ? 'bg-red-950/30' : ''}
-						{line.type === 'header' ? 'bg-klim-950/30' : ''}
+						{line.type === 'header' ? 'bg-blue-950/30' : ''}
 					">
-						<td class="select-none text-right px-2 py-0.5 text-surface-600 w-12 border-r border-surface-800">
+						<td class="select-none text-right px-2 py-0.5 text-zinc-600 w-12 border-r border-zinc-800">
 							{line.oldLineNumber || ''}
 						</td>
-						<td class="select-none text-right px-2 py-0.5 text-surface-600 w-12 border-r border-surface-800">
+						<td class="select-none text-right px-2 py-0.5 text-zinc-600 w-12 border-r border-zinc-800">
 							{line.newLineNumber || ''}
 						</td>
 						<td class="select-none px-2 py-0.5 w-4
 							{line.type === 'added' ? 'text-emerald-400' : ''}
 							{line.type === 'removed' ? 'text-red-400' : ''}
-							{line.type === 'header' ? 'text-klim-400' : 'text-surface-600'}
+							{line.type === 'header' ? 'text-blue-400' : 'text-zinc-600'}
 						">
 							{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : line.type === 'header' ? '@' : ' '}
 						</td>
 						<td class="px-2 py-0.5 whitespace-pre
 							{line.type === 'added' ? 'text-emerald-200' : ''}
 							{line.type === 'removed' ? 'text-red-200' : ''}
-							{line.type === 'header' ? 'text-klim-300' : 'text-surface-300'}
+							{line.type === 'header' ? 'text-blue-300' : 'text-zinc-300'}
 						">
 							{line.content}
 						</td>
