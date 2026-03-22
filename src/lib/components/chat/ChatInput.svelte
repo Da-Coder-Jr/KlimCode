@@ -5,11 +5,14 @@
 	const dispatch = createEventDispatcher();
 
 	let textarea: HTMLTextAreaElement;
+	let fileInput: HTMLInputElement;
 	let pasteGlow = false;
+	let attachedFiles: { name: string; content: string; type: string }[] = [];
 
 	function handleSubmit() {
 		if ($isStreaming || !$inputMessage.trim()) return;
-		dispatch('send', { message: $inputMessage });
+		dispatch('send', { message: $inputMessage, files: attachedFiles });
+		attachedFiles = [];
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -37,6 +40,54 @@
 		}
 	}
 
+	function handleUploadClick() {
+		fileInput?.click();
+	}
+
+	async function handleFileChange() {
+		const files = fileInput?.files;
+		if (!files || files.length === 0) return;
+
+		for (const file of Array.from(files)) {
+			// Only handle text-based files for now
+			const maxSize = 500 * 1024; // 500KB limit
+			if (file.size > maxSize) {
+				attachedFiles = [...attachedFiles, {
+					name: file.name,
+					content: `[File too large: ${(file.size / 1024).toFixed(1)}KB - max 500KB]`,
+					type: file.type
+				}];
+				continue;
+			}
+
+			try {
+				const text = await file.text();
+				attachedFiles = [...attachedFiles, {
+					name: file.name,
+					content: text,
+					type: file.type || 'text/plain'
+				}];
+
+				// Prepend file contents to the message
+				const fileHeader = `\n\n--- File: ${file.name} ---\n${text}\n--- End of ${file.name} ---\n\n`;
+				inputMessage.update(msg => msg + fileHeader);
+			} catch {
+				attachedFiles = [...attachedFiles, {
+					name: file.name,
+					content: '[Could not read file]',
+					type: file.type
+				}];
+			}
+		}
+
+		// Reset file input
+		if (fileInput) fileInput.value = '';
+	}
+
+	function removeFile(index: number) {
+		attachedFiles = attachedFiles.filter((_, i) => i !== index);
+	}
+
 	export function focus() {
 		textarea?.focus();
 	}
@@ -52,6 +103,28 @@
 
 <div class="flex-shrink-0 p-3 sm:p-4" style="border-top: 1px solid var(--border); background-color: var(--surface)">
 	<div class="max-w-3xl xl:max-w-4xl mx-auto">
+		<!-- Attached files preview -->
+		{#if attachedFiles.length > 0}
+			<div class="flex flex-wrap gap-2 mb-2">
+				{#each attachedFiles as file, i}
+					<div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-xs text-zinc-300">
+						<svg class="w-3 h-3 text-zinc-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+						</svg>
+						<span class="truncate max-w-[120px]">{file.name}</span>
+						<button
+							on:click={() => removeFile(i)}
+							class="text-zinc-500 hover:text-zinc-300 transition-colors"
+						>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
 		<form on:submit|preventDefault={handleSubmit}>
 			<div
 				class="relative rounded-2xl transition-all"
@@ -71,16 +144,28 @@
 					style="color: var(--content)"
 				></textarea>
 
+				<!-- Hidden file input -->
+				<input
+					bind:this={fileInput}
+					type="file"
+					multiple
+					accept=".txt,.md,.js,.ts,.py,.json,.csv,.html,.css,.jsx,.tsx,.go,.rs,.java,.c,.cpp,.h,.yml,.yaml,.toml,.xml,.sql,.sh,.bash,.env,.gitignore,.svelte,.vue"
+					class="hidden"
+					on:change={handleFileChange}
+				/>
+
 				<div class="flex items-center justify-between px-3 pb-2.5">
 					<div class="flex items-center gap-2">
+						<!-- File upload button -->
 						<button
 							type="button"
-							class="p-1.5 rounded-lg transition-all btn-icon"
+							on:click={handleUploadClick}
+							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-all"
 							title="Attach file"
 							disabled={$isStreaming}
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
 							</svg>
 						</button>
 

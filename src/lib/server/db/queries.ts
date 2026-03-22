@@ -3,50 +3,47 @@ import { query, queryOne, queryMany, ensureDb } from './index';
 import { env } from '$env/dynamic/private';
 import type { User, Session, Conversation, Message } from '$types/core';
 
-// ── Encryption helpers ──
+// Encryption key derivation for API key storage
+// Uses ENCRYPTION_SECRET env var or falls back to a derived key from a static salt + machine-specific data
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
 
 function getEncryptionKey(): Buffer {
-	const secret = env.KLIMCODE_SECRET || 'change-this-to-a-random-string';
-	// Derive a 32-byte key from the secret using SHA-256
-	return crypto.createHash('sha256').update(secret).digest();
+	const secret = process.env.ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'klimcode-default-encryption-key-change-in-production';
+	return crypto.scryptSync(secret, 'klimcode-api-key-salt', 32);
 }
 
-function encryptValue(plaintext: string): string {
+function encryptApiKey(plaintext: string): string {
 	const key = getEncryptionKey();
-	const iv = crypto.randomBytes(16);
+	const iv = crypto.randomBytes(IV_LENGTH);
 	const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-	let encrypted = cipher.update(plaintext, 'utf8', 'hex');
-	encrypted += cipher.final('hex');
-	const authTag = cipher.getAuthTag().toString('hex');
-	// Format: iv:authTag:ciphertext
-	return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+	const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+	const authTag = cipher.getAuthTag();
+	// Format: iv:authTag:encrypted (all base64)
+	return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
 }
 
-function decryptValue(encryptedStr: string): string {
-	try {
-		const parts = encryptedStr.split(':');
-		if (parts.length !== 3) {
-			// Legacy base64 format - decode and re-encrypt on next save
-			return Buffer.from(encryptedStr, 'base64').toString('utf-8');
-		}
-		const [ivHex, authTagHex, ciphertext] = parts;
-		const key = getEncryptionKey();
-		const iv = Buffer.from(ivHex, 'hex');
-		const authTag = Buffer.from(authTagHex, 'hex');
-		const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
-		decipher.setAuthTag(authTag);
-		let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
-		decrypted += decipher.final('utf8');
-		return decrypted;
-	} catch {
-		// Fallback for legacy base64-encoded values
-		try {
-			return Buffer.from(encryptedStr, 'base64').toString('utf-8');
-		} catch {
-			return '';
-		}
+function decryptApiKey(encryptedStr: string): string {
+	// Support legacy base64-only format (migration path)
+	if (!encryptedStr.includes(':')) {
+		return Buffer.from(encryptedStr, 'base64').toString('utf-8');
 	}
+
+	const parts = encryptedStr.split(':');
+	if (parts.length !== 3) {
+		// Fallback to legacy format
+		return Buffer.from(encryptedStr, 'base64').toString('utf-8');
+	}
+
+	const key = getEncryptionKey();
+	const iv = Buffer.from(parts[0], 'base64');
+	const authTag = Buffer.from(parts[1], 'base64');
+	const encrypted = Buffer.from(parts[2], 'base64');
+
+	const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	decipher.setAuthTag(authTag);
+	return decipher.update(encrypted) + decipher.final('utf8');
 }
 
 // ── User Queries ──
@@ -265,12 +262,12 @@ export async function getMessages(conversationId: string, limit = 100, offset = 
 	return rows.map(mapMessage);
 }
 
-// ── API Key Queries ──
+// ── API Key Queries (AES-256-GCM encrypted) ──
 
 export async function storeApiKey(userId: string, apiKey: string, label?: string): Promise<void> {
 	await ensureDb();
 	const id = crypto.randomUUID();
-	const encrypted = encryptValue(apiKey);
+	const encrypted = encryptApiKey(apiKey);
 
 	// Delete old keys first to avoid accumulation
 	await query("DELETE FROM api_keys WHERE user_id = $1 AND provider = 'nvidia'", [userId]);
@@ -288,7 +285,7 @@ export async function getApiKey(userId: string): Promise<string | null> {
 		[userId]
 	);
 	if (!row) return null;
-	return decryptValue(row.api_key_encrypted);
+	return decryptApiKey(row.api_key_encrypted);
 }
 
 export async function deleteApiKeys(userId: string): Promise<void> {

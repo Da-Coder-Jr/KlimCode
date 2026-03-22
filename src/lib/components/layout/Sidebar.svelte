@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { conversations, activeConversationId, selectConversation, deleteConversation, createConversation } from '$stores/chat';
+	import { conversations, activeConversationId, selectConversation, deleteConversation, createConversation, renameConversation } from '$stores/chat';
 	import { settings } from '$stores/settings';
 	import { currentUser, logout } from '$stores/auth';
 	import { githubConnected } from '$stores/github';
@@ -7,6 +7,7 @@
 	import { formatRelativeTime } from '$utils/formatting';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import ConfirmDialog from './ConfirmDialog.svelte';
 
 	export let onClose: () => void = () => {};
 
@@ -15,6 +16,11 @@
 	let searchQuery = '';
 	let editingId: string | null = null;
 	let editTitle = '';
+
+	// Custom delete confirmation state
+	let deleteDialogOpen = false;
+	let pendingDeleteId: string | null = null;
+	let pendingDeleteTitle = '';
 
 	async function handleNewChat() {
 		showNewMenu = false;
@@ -33,11 +39,23 @@
 		goto(`/chat/${id}`);
 	}
 
-	async function handleDelete(e: Event, id: string) {
+	function handleDelete(e: Event, id: string) {
 		e.stopPropagation();
-		if (confirm('Delete this conversation?')) {
-			await deleteConversation(id);
+		const conv = $conversations.find(c => c.id === id);
+		pendingDeleteId = id;
+		pendingDeleteTitle = conv?.title || 'this conversation';
+		deleteDialogOpen = true;
+	}
+
+	async function confirmDelete() {
+		if (pendingDeleteId) {
+			await deleteConversation(pendingDeleteId);
+			if ($activeConversationId === pendingDeleteId) {
+				goto('/');
+			}
 		}
+		pendingDeleteId = null;
+		pendingDeleteTitle = '';
 	}
 
 	function startRename(e: Event, conv: { id: string; title: string }) {
@@ -46,7 +64,10 @@
 		editTitle = conv.title;
 	}
 
-	function finishRename() {
+	async function finishRename() {
+		if (editingId && editTitle.trim()) {
+			await renameConversation(editingId, editTitle.trim());
+		}
 		editingId = null;
 		editTitle = '';
 	}
@@ -365,3 +386,14 @@
 		</div>
 	{/if}
 </aside>
+
+<!-- Custom Delete Confirmation Dialog -->
+<ConfirmDialog
+	bind:open={deleteDialogOpen}
+	title="Delete conversation"
+	message="Are you sure you want to delete &quot;{pendingDeleteTitle}&quot;? This action cannot be undone."
+	confirmText="Delete"
+	cancelText="Cancel"
+	variant="danger"
+	on:confirm={confirmDelete}
+/>
