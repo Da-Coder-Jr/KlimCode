@@ -16,6 +16,29 @@ export default {
 				zinc: {
 					750: '#323843',
 					850: '#1b1f27'
+				},
+				surface: {
+					DEFAULT: 'var(--surface)',
+					secondary: 'var(--surface-secondary)',
+					tertiary: 'var(--surface-tertiary)',
+					hover: 'var(--surface-hover)',
+					active: 'var(--surface-active)',
+				},
+				border: {
+					DEFAULT: 'var(--border)',
+					secondary: 'var(--border-secondary)',
+				},
+				content: {
+					DEFAULT: 'var(--content)',
+					secondary: 'var(--content-secondary)',
+					tertiary: 'var(--content-tertiary)',
+					muted: 'var(--content-muted)',
+				},
+				accent: {
+					DEFAULT: 'var(--accent)',
+					hover: 'var(--accent-hover)',
+					muted: 'var(--accent-muted)',
+					subtle: 'var(--accent-subtle)',
 				}
 			},
 			animation: {
@@ -24,7 +47,8 @@ export default {
 				'slide-down': 'slideDown 0.2s ease-out',
 				'fade-in': 'fadeIn 0.2s ease-out',
 				'spin-slow': 'spin 2s linear infinite',
-				'bounce-subtle': 'bounceSubtle 0.6s ease-out'
+				'bounce-subtle': 'bounceSubtle 0.6s ease-out',
+				'shimmer': 'shimmer 2s ease-in-out infinite'
 			},
 			keyframes: {
 				slideUp: {
@@ -42,7 +66,17 @@ export default {
 				bounceSubtle: {
 					'0%, 100%': { transform: 'translateY(0)' },
 					'50%': { transform: 'translateY(-2px)' }
+				},
+				shimmer: {
+					'0%': { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' }
 				}
+			},
+			boxShadow: {
+				'soft': '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
+				'medium': '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+				'elevated': '0 10px 25px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04)',
+				'float': '0 20px 40px -8px rgb(0 0 0 / 0.12)',
 			}
 		}
 	},

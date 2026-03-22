@@ -36,7 +36,6 @@
 	}
 
 	function saveEdit() {
-		// Would dispatch event to update message
 		editMode = false;
 		editText = '';
 	}
@@ -61,25 +60,23 @@
 
 <div
 	bind:this={messageEl}
-	class="group relative flex w-full items-start gap-4 px-4 sm:px-6 py-5 transition-colors {isUser ? '' : ''}"
+	class="group relative flex w-full items-start gap-4 px-4 sm:px-6 py-5 transition-colors"
 >
 	<div class="max-w-3xl xl:max-w-4xl mx-auto flex gap-3.5 w-full">
-		<!-- Avatar - inspired by chat-ui rounded avatars -->
+		<!-- Avatar -->
 		<div class="flex-shrink-0 mt-1">
 			{#if isUser}
 				{#if $currentUser?.avatarUrl}
-					<img src={$currentUser.avatarUrl} alt="" class="w-7 h-7 rounded-full shadow-sm" />
+					<img src={$currentUser.avatarUrl} alt="" class="w-7 h-7 rounded-full shadow-soft" />
 				{:else}
-					<div class="w-7 h-7 rounded-full bg-gradient-to-br from-zinc-600 to-zinc-700 flex items-center justify-center shadow-sm">
-						<svg class="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="w-7 h-7 rounded-full flex items-center justify-center shadow-soft" style="background-color: var(--surface-tertiary)">
+						<svg class="w-3.5 h-3.5" style="color: var(--content-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 						</svg>
 					</div>
 				{/if}
 			{:else}
-				<div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/20">
-					<span class="text-white font-bold text-[10px]">K</span>
-				</div>
+				<img src="/favicon.svg" alt="KlimCode" class="w-7 h-7 rounded-lg shadow-soft" />
 			{/if}
 		</div>
 
@@ -87,67 +84,66 @@
 		<div class="flex-1 min-w-0">
 			<!-- Name + model label -->
 			<div class="flex items-center gap-2 mb-1.5">
-				<span class="text-[13px] font-semibold {isUser ? 'text-zinc-200' : 'text-zinc-100'}">
+				<span class="text-[13px] font-semibold" style="color: var(--content)">
 					{isUser ? ($currentUser?.displayName || 'You') : 'KlimCode'}
 				</span>
 				{#if message.model && isAssistant && !isStreaming}
-					<span class="text-[11px] text-zinc-600 font-mono">
+					<span class="text-[11px] font-mono" style="color: var(--content-muted)">
 						{message.model.split('/').pop()}
 					</span>
 				{/if}
 			</div>
 
-			<!-- Message content - bubble style for assistant inspired by chat-ui -->
+			<!-- Message content -->
 			{#if isUser}
 				<div class="message-content">
 					{#if editMode}
-						<!-- Inline edit mode - inspired by open-webui -->
 						<textarea
 							bind:value={editText}
 							on:keydown={handleEditKeydown}
 							rows="5"
-							class="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-[15px] text-zinc-200 resize-y focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 leading-relaxed"
+							class="w-full rounded-xl px-4 py-3 text-[15px] resize-y focus:outline-none leading-relaxed"
+							style="background-color: var(--surface-secondary); border: 1px solid var(--border); color: var(--content)"
 						></textarea>
 						<div class="flex items-center gap-2 mt-2">
-							<button on:click={saveEdit} class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">
+							<button on:click={saveEdit} class="btn-primary text-xs py-1.5 px-3">
 								Save & Submit
 							</button>
-							<button on:click={cancelEdit} class="px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors">
+							<button on:click={cancelEdit} class="text-xs font-medium py-1.5 px-3 transition-colors" style="color: var(--content-muted)">
 								Cancel
 							</button>
 						</div>
 					{:else}
-						<p class="text-[15px] text-zinc-300 whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+						<p class="text-[15px] whitespace-pre-wrap break-words leading-relaxed" style="color: var(--content-secondary)">{message.content}</p>
 					{/if}
 				</div>
 			{:else}
-				<!-- Assistant message with bubble styling from chat-ui -->
-				<div class="message-content relative rounded-2xl border border-zinc-800/60 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 px-5 py-3.5">
+				<!-- Assistant message with bubble -->
+				<div class="message-content relative rounded-2xl px-5 py-3.5" style="background-color: var(--chat-bubble-bg); border: 1px solid var(--chat-bubble-border)">
 					<div class="prose-chat">
 						{@html renderedContent}
 					</div>
 
 					{#if isStreaming}
 						<span class="inline-flex gap-1 ml-1 align-text-bottom">
-							<span class="thinking-dot w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-							<span class="thinking-dot w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-							<span class="thinking-dot w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
+							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
+							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 						</span>
 					{/if}
 				</div>
 			{/if}
 
-			<!-- Action buttons - positioned below message, hidden until hover (chat-ui + open-webui pattern) -->
+			<!-- Action buttons -->
 			{#if !isStreaming}
 				<div class="flex items-center gap-0.5 mt-2 invisible group-hover:visible transition-all duration-150">
-					<!-- Copy button -->
 					<button
 						on:click={handleCopy}
-						class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all"
+						class="p-1.5 rounded-lg transition-all btn-icon"
 						title="Copy message"
 					>
 						{#if copied}
-							<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 							</svg>
 						{:else}
@@ -157,11 +153,10 @@
 						{/if}
 					</button>
 
-					<!-- Edit button (for user messages) - inspired by open-webui -->
 					{#if isUser && !editMode}
 						<button
 							on:click={startEdit}
-							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all"
+							class="p-1.5 rounded-lg transition-all btn-icon"
 							title="Edit message"
 						>
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,10 +165,9 @@
 						</button>
 					{/if}
 
-					<!-- Retry button (for assistant messages) - inspired by chat-ui -->
 					{#if isAssistant}
 						<button
-							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all"
+							class="p-1.5 rounded-lg transition-all btn-icon"
 							title="Regenerate response"
 						>
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,9 +176,8 @@
 						</button>
 					{/if}
 
-					<!-- Token count -->
 					{#if message.tokens && isAssistant}
-						<span class="text-[10px] text-zinc-700 ml-1.5 font-mono">
+						<span class="text-[10px] ml-1.5 font-mono" style="color: var(--content-muted)">
 							{(message.tokens.prompt || 0) + (message.tokens.completion || 0)} tokens
 						</span>
 					{/if}

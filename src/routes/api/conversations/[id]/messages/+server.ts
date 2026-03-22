@@ -7,8 +7,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const conversation = await getConversation(params.id, locals.user.id);
 	if (!conversation) return json({ message: 'Conversation not found' }, { status: 404 });
 
-	const limit = parseInt(url.searchParams.get('limit') || '100', 10);
-	const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+	const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '100', 10) || 100, 1), 500);
+	const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10) || 0, 0);
 	const messages = await getMessages(params.id, limit, offset);
 	return json({ messages });
 };

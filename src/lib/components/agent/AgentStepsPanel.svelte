@@ -32,79 +32,72 @@
 
 	function getStatusColor(status: string): string {
 		switch (status) {
-			case 'running': return 'text-amber-400';
-			case 'completed': return 'text-emerald-400';
-			case 'failed': return 'text-red-400';
-			default: return 'text-zinc-500';
-		}
-	}
-
-	function getStatusBg(status: string): string {
-		switch (status) {
-			case 'running': return 'bg-amber-500/5 border-amber-500/15';
-			case 'completed': return 'bg-emerald-500/5 border-emerald-500/15';
-			case 'failed': return 'bg-red-500/5 border-red-500/15';
-			default: return 'bg-zinc-900 border-zinc-800';
+			case 'running': return 'text-amber-500 dark:text-amber-400';
+			case 'completed': return 'text-emerald-500 dark:text-emerald-400';
+			case 'failed': return 'text-red-500 dark:text-red-400';
+			default: return '';
 		}
 	}
 </script>
 
 <div class="h-full flex flex-col">
-	<div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-		<h3 class="text-sm font-medium text-zinc-200 flex items-center gap-2">
-			<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<div class="px-4 py-3 flex items-center justify-between" style="border-bottom: 1px solid var(--border)">
+		<h3 class="text-sm font-medium flex items-center gap-2" style="color: var(--content-secondary)">
+			<svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
 			</svg>
 			Agent Activity
 		</h3>
 		{#if steps.length > 0}
-			<span class="text-[11px] text-zinc-600 font-mono">{steps.length} step{steps.length !== 1 ? 's' : ''}</span>
+			<span class="text-[11px] font-mono" style="color: var(--content-muted)">{steps.length} step{steps.length !== 1 ? 's' : ''}</span>
 		{/if}
 	</div>
 
 	<div class="flex-1 overflow-y-auto p-3 space-y-1.5">
 		{#if steps.length === 0}
-			<div class="text-center text-zinc-600 text-sm py-8">
-				<svg class="w-8 h-8 mx-auto mb-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="text-center text-sm py-8" style="color: var(--content-muted)">
+				<svg class="w-8 h-8 mx-auto mb-3" style="color: var(--border)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
 				</svg>
 				<p>Agent steps will appear here</p>
-				<p class="text-[11px] text-zinc-700 mt-1">Send a message to start the agent</p>
+				<p class="text-[11px] mt-1" style="color: var(--content-muted)">Send a message to start the agent</p>
 			</div>
 		{:else}
 			{#each steps as step (step.id)}
 				<div
-					class="rounded-xl border {getStatusBg(step.status)} overflow-hidden"
+					class="rounded-xl overflow-hidden"
+					style="background-color: var(--surface-secondary); border: 1px solid var(--border)"
 					transition:slide={{ duration: 200 }}
 				>
 					<button
 						on:click={() => toggleStep(step.id)}
-						class="w-full px-3 py-2.5 flex items-center gap-2.5 text-left hover:bg-white/[0.02] transition-colors"
+						class="w-full px-3 py-2.5 flex items-center gap-2.5 text-left transition-colors"
 					>
 						{#if step.status === 'running'}
 							<div class="w-4 h-4 flex-shrink-0">
-								<svg class="w-4 h-4 text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
+								<svg class="w-4 h-4 text-amber-500 animate-spin" fill="none" viewBox="0 0 24 24">
 									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 								</svg>
 							</div>
 						{:else}
-							<svg class="w-4 h-4 flex-shrink-0 {getStatusColor(step.status)}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-4 h-4 flex-shrink-0 {getStatusColor(step.status)}" style="{step.status === 'pending' ? 'color: var(--content-muted)' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
 							</svg>
 						{/if}
 
-						<span class="text-xs text-zinc-300 flex-1 truncate">{step.description}</span>
+						<span class="text-xs flex-1 truncate" style="color: var(--content-secondary)">{step.description}</span>
 
 						{#if step.completedAt && step.startedAt}
-							<span class="text-[10px] text-zinc-600 font-mono flex-shrink-0">
+							<span class="text-[10px] font-mono flex-shrink-0" style="color: var(--content-muted)">
 								{formatDuration(new Date(step.completedAt).getTime() - new Date(step.startedAt).getTime())}
 							</span>
 						{/if}
 
 						<svg
-							class="w-3 h-3 text-zinc-600 transition-transform duration-150 flex-shrink-0"
+							class="w-3 h-3 transition-transform duration-150 flex-shrink-0"
 							class:rotate-180={expandedSteps.has(step.id)}
+							style="color: var(--content-muted)"
 							fill="none" stroke="currentColor" viewBox="0 0 24 24"
 						>
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -112,8 +105,8 @@
 					</button>
 
 					{#if expandedSteps.has(step.id) && (step.result || step.error)}
-						<div class="px-3 pb-3 border-t border-zinc-800/50" transition:slide={{ duration: 150 }}>
-							<pre class="text-[11px] text-zinc-500 whitespace-pre-wrap break-all mt-2 max-h-48 overflow-y-auto font-mono leading-relaxed">{step.error || step.result}</pre>
+						<div class="px-3 pb-3" style="border-top: 1px solid var(--border)" transition:slide={{ duration: 150 }}>
+							<pre class="text-[11px] whitespace-pre-wrap break-all mt-2 max-h-48 overflow-y-auto font-mono leading-relaxed" style="color: var(--content-muted)">{step.error || step.result}</pre>
 						</div>
 					{/if}
 				</div>

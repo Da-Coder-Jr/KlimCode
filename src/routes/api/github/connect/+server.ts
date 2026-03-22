@@ -1,9 +1,9 @@
-import { redirect, json } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getGitHubAuthUrl } from '$server/auth/github-oauth';
 import { env } from '$env/dynamic/private';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, cookies }) => {
 	const clientId = env.GITHUB_CLIENT_ID;
 
 	if (!clientId) {
@@ -22,9 +22,16 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const redirectUri = `${url.origin}/api/github/callback`;
 	const state = crypto.randomUUID();
+
+	// Store state in a secure cookie for CSRF validation on callback
+	cookies.set('klimcode_oauth_state', state, {
+		path: '/',
+		httpOnly: true,
+		secure: true,
+		sameSite: 'lax',
+		maxAge: 600 // 10 minutes - enough time for OAuth flow
+	});
+
 	const authUrl = getGitHubAuthUrl(clientId, redirectUri, state);
-
-	console.log('[KlimCode] GitHub OAuth redirect:', { clientId: clientId.slice(0, 4) + '...', redirectUri });
-
 	throw redirect(302, authUrl);
 };

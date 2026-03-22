@@ -1,6 +1,53 @@
 import crypto from 'crypto';
 import { query, queryOne, queryMany, ensureDb } from './index';
+import { env } from '$env/dynamic/private';
 import type { User, Session, Conversation, Message } from '$types/core';
+
+// ── Encryption helpers ──
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+
+function getEncryptionKey(): Buffer {
+	const secret = env.KLIMCODE_SECRET || 'change-this-to-a-random-string';
+	// Derive a 32-byte key from the secret using SHA-256
+	return crypto.createHash('sha256').update(secret).digest();
+}
+
+function encryptValue(plaintext: string): string {
+	const key = getEncryptionKey();
+	const iv = crypto.randomBytes(16);
+	const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+	encrypted += cipher.final('hex');
+	const authTag = cipher.getAuthTag().toString('hex');
+	// Format: iv:authTag:ciphertext
+	return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+}
+
+function decryptValue(encryptedStr: string): string {
+	try {
+		const parts = encryptedStr.split(':');
+		if (parts.length !== 3) {
+			// Legacy base64 format - decode and re-encrypt on next save
+			return Buffer.from(encryptedStr, 'base64').toString('utf-8');
+		}
+		const [ivHex, authTagHex, ciphertext] = parts;
+		const key = getEncryptionKey();
+		const iv = Buffer.from(ivHex, 'hex');
+		const authTag = Buffer.from(authTagHex, 'hex');
+		const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+		decipher.setAuthTag(authTag);
+		let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+		decrypted += decipher.final('utf8');
+		return decrypted;
+	} catch {
+		// Fallback for legacy base64-encoded values
+		try {
+			return Buffer.from(encryptedStr, 'base64').toString('utf-8');
+		} catch {
+			return '';
+		}
+	}
+}
 
 // ── User Queries ──
 
@@ -47,7 +94,7 @@ export async function updateUserGithub(userId: string, githubId: string, githubT
 	await query(
 		`UPDATE users SET github_id = $1, github_token = $2, avatar_url = COALESCE($3, avatar_url), github_username = COALESCE($4, github_username), updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $5`,
-		[githubId, githubToken, avatarUrl || null, githubUsername || null, userId]
+		[githubId, encryptValue(githubToken), avatarUrl || null, githubUsername || null, userId]
 	);
 }
 
@@ -223,9 +270,7 @@ export async function getMessages(conversationId: string, limit = 100, offset = 
 export async function storeApiKey(userId: string, apiKey: string, label?: string): Promise<void> {
 	await ensureDb();
 	const id = crypto.randomUUID();
-	// Base64 encode - note: this is encoding, not encryption
-	// For production, use proper encryption with a secret key
-	const encrypted = Buffer.from(apiKey).toString('base64');
+	const encrypted = encryptValue(apiKey);
 
 	// Delete old keys first to avoid accumulation
 	await query("DELETE FROM api_keys WHERE user_id = $1 AND provider = 'nvidia'", [userId]);
@@ -243,7 +288,7 @@ export async function getApiKey(userId: string): Promise<string | null> {
 		[userId]
 	);
 	if (!row) return null;
-	return Buffer.from(row.api_key_encrypted, 'base64').toString('utf-8');
+	return decryptValue(row.api_key_encrypted);
 }
 
 export async function deleteApiKeys(userId: string): Promise<void> {
@@ -284,7 +329,7 @@ function mapUser(row: Record<string, unknown>): User {
 		displayName: row.display_name as string,
 		avatarUrl: row.avatar_url as string | undefined,
 		githubId: row.github_id as string | undefined,
-		githubToken: row.github_token as string | undefined,
+		githubToken: row.github_token ? decryptValue(row.github_token as string) : undefined,
 		githubUsername: row.github_username as string | undefined,
 		createdAt: String(row.created_at),
 		updatedAt: String(row.updated_at)
