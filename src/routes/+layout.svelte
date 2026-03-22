@@ -129,16 +129,18 @@
 		<!-- Main content area -->
 		<main class="flex flex-col min-w-0 h-full overflow-hidden relative">
 			{#if showSidebar}
-				<!-- Desktop sidebar toggle -->
-				<button
-					on:click={toggleNav}
-					class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl transition-all duration-150 btn-icon"
-					title="{isNavCollapsed ? 'Open' : 'Close'} sidebar (Ctrl+Shift+O)"
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-					</svg>
-				</button>
+				<!-- Desktop: Only show open button when sidebar is collapsed -->
+				{#if isNavCollapsed}
+					<button
+						on:click={toggleNav}
+						class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl transition-all duration-150 btn-icon"
+						title="Open sidebar (Ctrl+Shift+O)"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+						</svg>
+					</button>
+				{/if}
 				<!-- Mobile toggle -->
 				<button
 					on:click={toggleMobileSidebar}

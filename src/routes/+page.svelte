@@ -14,6 +14,7 @@
 	let agentMode = false;
 	let modelSelectorOpen = false;
 	let modelSearchQuery = '';
+	let textareaEl: HTMLTextAreaElement;
 
 	$: selectedModel = AVAILABLE_MODELS.find(m => m.id === $settings.defaultModel) || AVAILABLE_MODELS[0];
 	$: filteredModels = modelSearchQuery
@@ -24,19 +25,27 @@
 		if ((!messageInput.trim() && attachedFiles.length === 0) || isCreating) return;
 		isCreating = true;
 
-		let finalMessage = messageInput;
-		for (const file of attachedFiles) {
-			if (file.type.startsWith('image/')) {
-				finalMessage += `\n\n[Attached image: ${file.name}]`;
-			} else {
-				finalMessage += `\n\n--- File: ${file.name} ---\n${file.content}\n--- End of ${file.name} ---`;
+		try {
+			let finalMessage = messageInput;
+			for (const file of attachedFiles) {
+				if (file.type.startsWith('image/')) {
+					finalMessage += `\n\n[Attached image: ${file.name}]`;
+				} else {
+					finalMessage += `\n\n--- File: ${file.name} ---\n${file.content}\n--- End of ${file.name} ---`;
+				}
 			}
-		}
 
-		const mode = agentMode ? 'agent' : 'chat';
-		const id = await createConversation(mode, $settings.defaultModel);
-		inputMessage.set(finalMessage);
-		goto(`/chat/${id}`);
+			const mode = agentMode ? 'agent' : 'chat';
+			const id = await createConversation(mode, $settings.defaultModel);
+			inputMessage.set(finalMessage);
+			messageInput = '';
+			attachedFiles = [];
+			await goto(`/chat/${id}`);
+		} catch (err) {
+			console.error('Failed to start chat:', err);
+		} finally {
+			isCreating = false;
+		}
 	}
 
 	async function startChat() {
@@ -53,6 +62,13 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			startChatWithMessage();
+		}
+	}
+
+	function handleInput() {
+		if (textareaEl) {
+			textareaEl.style.height = 'auto';
+			textareaEl.style.height = Math.min(textareaEl.scrollHeight, 160) + 'px';
 		}
 	}
 
@@ -138,10 +154,10 @@
 	</div>
 {:else}
 	<div class="flex-1 flex flex-col items-center justify-center h-full overflow-y-auto">
-		<div class="w-full max-w-2xl mx-auto px-4 py-8">
+		<div class="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in">
 			<!-- Hero -->
 			<div class="text-center mb-10">
-				<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6 animate-fade-in" style="background-color: var(--accent-subtle); color: var(--content-tertiary); border: 1px solid var(--border)">
+				<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6" style="background-color: var(--accent-subtle); color: var(--content-tertiary); border: 1px solid var(--border)">
 					<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
 					Powered by NVIDIA NIM
 				</div>
@@ -155,7 +171,7 @@
 
 			<!-- Main Input -->
 			<div class="relative mb-8">
-				<div class="rounded-2xl p-3 transition-all shadow-soft hover:shadow-medium" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+				<div class="rounded-2xl p-3 transition-all shadow-soft focus-within:shadow-medium" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
 					<!-- Attached files/images preview -->
 					{#if attachedFiles.length > 0}
 						<div class="flex flex-wrap gap-2 mb-2 px-1">
@@ -193,8 +209,10 @@
 					{/if}
 
 					<textarea
+						bind:this={textareaEl}
 						bind:value={messageInput}
 						on:keydown={handleKeydown}
+						on:input={handleInput}
 						placeholder="Ask anything about code..."
 						rows="3"
 						class="w-full bg-transparent resize-none px-1 py-1 focus:outline-none text-[15px] leading-relaxed"
@@ -249,14 +267,14 @@
 								>
 									<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
 									<span class="truncate max-w-[100px]">{selectedModel.name}</span>
-									<svg class="w-3 h-3" class:rotate-180={modelSelectorOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3 h-3 transition-transform" class:rotate-180={modelSelectorOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 									</svg>
 								</button>
 
 								{#if modelSelectorOpen}
 									<button class="fixed inset-0 z-40" on:click={() => { modelSelectorOpen = false; modelSearchQuery = ''; }} aria-label="Close"></button>
-									<div class="absolute bottom-full left-0 mb-1.5 w-72 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+									<div class="absolute bottom-full left-0 mb-1.5 w-72 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-up" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
 										<div class="px-3 py-2" style="border-bottom: 1px solid var(--border)">
 											<input
 												bind:value={modelSearchQuery}
@@ -297,9 +315,16 @@
 								? 'background-color: var(--content); color: var(--surface)'
 								: 'background-color: var(--surface-tertiary); color: var(--content-muted); cursor: not-allowed'}"
 						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-							</svg>
+							{#if isCreating}
+								<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+							{:else}
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+								</svg>
+							{/if}
 						</button>
 					</div>
 				</div>
@@ -309,7 +334,7 @@
 			<div class="grid grid-cols-2 gap-2.5 mb-10">
 				{#each suggestions as s}
 					<button
-						on:click={() => { messageInput = s.text; }}
+						on:click={() => { messageInput = s.text; textareaEl?.focus(); }}
 						class="group p-3.5 rounded-xl text-left transition-all duration-200 hover:shadow-soft active:scale-[0.98]"
 						style="border: 1px solid var(--border); background-color: transparent"
 					>

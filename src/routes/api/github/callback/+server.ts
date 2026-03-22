@@ -41,7 +41,9 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
-		const { user, session } = await authenticateWithGitHub(code, clientId, clientSecret);
+		// Pass existing user ID if user is already logged in (linking GitHub to existing account)
+		const existingUserId = event.locals.user?.id;
+		const { user, session } = await authenticateWithGitHub(code, clientId, clientSecret, existingUserId);
 		setSessionCookie(event, session);
 		console.log('[KlimCode] GitHub auth success for user:', user.username);
 		throw redirect(302, '/');

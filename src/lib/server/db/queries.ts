@@ -91,7 +91,7 @@ export async function updateUserGithub(userId: string, githubId: string, githubT
 	await query(
 		`UPDATE users SET github_id = $1, github_token = $2, avatar_url = COALESCE($3, avatar_url), github_username = COALESCE($4, github_username), updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $5`,
-		[githubId, encryptValue(githubToken), avatarUrl || null, githubUsername || null, userId]
+		[githubId, encryptApiKey(githubToken), avatarUrl || null, githubUsername || null, userId]
 	);
 }
 
@@ -334,7 +334,7 @@ function mapUser(row: Record<string, unknown>): User {
 		displayName: row.display_name as string,
 		avatarUrl: row.avatar_url as string | undefined,
 		githubId: row.github_id as string | undefined,
-		githubToken: row.github_token ? decryptValue(row.github_token as string) : undefined,
+		githubToken: row.github_token ? decryptApiKey(row.github_token as string) : undefined,
 		githubUsername: row.github_username as string | undefined,
 		createdAt: String(row.created_at),
 		updatedAt: String(row.updated_at)

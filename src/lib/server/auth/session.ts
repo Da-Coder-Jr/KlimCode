@@ -87,11 +87,12 @@ export async function getSessionFromRequest(event: RequestEvent): Promise<{ user
 }
 
 export function setSessionCookie(event: RequestEvent, session: Session): void {
+	const isSecure = event.url.protocol === 'https:';
 	event.cookies.set(SESSION_COOKIE, session.token, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: true,
+		secure: isSecure,
 		maxAge: 30 * 24 * 60 * 60
 	});
 }
