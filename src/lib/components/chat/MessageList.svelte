@@ -22,7 +22,6 @@
 	});
 
 	onMount(() => {
-		// ResizeObserver for dynamic content changes - inspired by chat-ui
 		if (scrollContainer) {
 			resizeObserver = new ResizeObserver(() => {
 				checkScrollPosition();
@@ -87,17 +86,15 @@
 	class="flex-1 overflow-y-auto relative"
 >
 	{#if messages.length === 0 && !streamingMsg}
-		<!-- Empty state - polished landing inspired by both chat-ui and open-webui -->
+		<!-- Empty state -->
 		<div class="flex items-center justify-center h-full p-4">
 			<div class="text-center max-w-lg">
 				<div class="mb-6">
-					<div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/15">
-						<span class="text-white font-bold text-xl">K</span>
-					</div>
+					<img src="/favicon.svg" alt="KlimCode" class="w-14 h-14 mx-auto rounded-2xl shadow-soft" />
 				</div>
 
-				<h2 class="text-xl font-semibold text-zinc-100 mb-2">How can I help?</h2>
-				<p class="text-zinc-500 text-sm mb-8 max-w-sm mx-auto">
+				<h2 class="text-xl font-semibold mb-2" style="color: var(--content)">How can I help?</h2>
+				<p class="text-sm mb-8 max-w-sm mx-auto" style="color: var(--content-muted)">
 					I can write code, debug issues, explain concepts, and create GitHub PRs in Agent mode.
 				</p>
 
@@ -105,9 +102,10 @@
 					{#each quickSuggestions as suggestion}
 						<button
 							on:click={() => useSuggestion(suggestion.text)}
-							class="group px-4 py-3.5 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/60 text-left transition-all duration-200"
+							class="group px-4 py-3.5 rounded-xl text-left transition-all duration-200"
+							style="border: 1px solid var(--border)"
 						>
-							<span class="text-[13px] text-zinc-500 group-hover:text-zinc-300 transition-colors leading-snug">{suggestion.text}</span>
+							<span class="text-[13px] transition-colors leading-snug" style="color: var(--content-tertiary)">{suggestion.text}</span>
 						</button>
 					{/each}
 				</div>
@@ -125,12 +123,13 @@
 		</div>
 	{/if}
 
-	<!-- Scroll to bottom button - inspired by chat-ui ScrollToBottomBtn -->
+	<!-- Scroll to bottom button -->
 	{#if showScrollBtn}
 		<button
 			transition:fade={{ duration: 150 }}
 			on:click={scrollToBottom}
-			class="fixed bottom-32 right-6 lg:right-10 z-10 flex items-center justify-center w-10 h-10 rounded-full border border-zinc-700 bg-zinc-800 shadow-lg hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-all"
+			class="fixed bottom-32 right-6 lg:right-10 z-10 flex items-center justify-center w-10 h-10 rounded-full shadow-elevated transition-all"
+			style="background-color: var(--surface-secondary); border: 1px solid var(--border); color: var(--content-tertiary)"
 			title="Scroll to bottom"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

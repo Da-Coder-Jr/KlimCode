@@ -40,9 +40,9 @@
 
 	function getBadgeClass(category: string): string {
 		switch (category) {
-			case 'code': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-			case 'reasoning': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-			default: return 'bg-zinc-700/50 text-zinc-400 border-zinc-600/50';
+			case 'code': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+			case 'reasoning': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+			default: return 'border';
 		}
 	}
 
@@ -60,27 +60,27 @@
 <div class="relative">
 	<button
 		on:click={() => open = !open}
-		class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 text-sm transition-all"
+		class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all"
+		style="background-color: var(--surface-tertiary); border: 1px solid var(--border)"
 	>
-		<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-		<span class="text-zinc-400 text-xs truncate max-w-[130px] font-medium">{selectedModel.name}</span>
-		<svg class="w-3 h-3 text-zinc-600 transition-transform" class:rotate-180={open} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+		<span class="text-xs truncate max-w-[130px] font-medium" style="color: var(--content-tertiary)">{selectedModel.name}</span>
+		<svg class="w-3 h-3 transition-transform" class:rotate-180={open} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 		</svg>
 	</button>
 
 	{#if open}
-		<!-- Backdrop to close on click outside -->
 		<button class="fixed inset-0 z-40" on:click={() => { open = false; searchQuery = ''; }} aria-label="Close"></button>
 
-		<div class="absolute top-full right-0 mt-1.5 w-80 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl shadow-black/30 z-50 overflow-hidden animate-slide-down">
-			<!-- Search in dropdown - inspired by open-webui Selector -->
-			<div class="px-3 py-2.5 border-b border-zinc-800">
+		<div class="absolute top-full right-0 mt-1.5 w-80 rounded-xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+			<div class="px-3 py-2.5" style="border-bottom: 1px solid var(--border)">
 				<input
 					bind:value={searchQuery}
 					type="text"
 					placeholder="Search models..."
-					class="w-full bg-zinc-800/50 border-none rounded-lg px-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+					class="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+					style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: none"
 					autofocus
 				/>
 			</div>
@@ -89,20 +89,21 @@
 				{#each filteredModels as model}
 					<button
 						on:click={() => select(model.id)}
-						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-100
-							{currentModel === model.id ? 'bg-zinc-800 text-zinc-100' : 'hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200'}"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-100"
+						style="{currentModel === model.id
+							? `background-color: var(--surface-active); color: var(--content)`
+							: `color: var(--content-tertiary)`}"
 					>
-						<!-- Category icon -->
-						<div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0
-							{model.category === 'code' ? 'bg-blue-500/10' : model.category === 'reasoning' ? 'bg-purple-500/10' : 'bg-zinc-800'}">
-							<svg class="w-3.5 h-3.5 {model.category === 'code' ? 'text-blue-400' : model.category === 'reasoning' ? 'text-purple-400' : 'text-zinc-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+							style="background-color: {model.category === 'code' ? 'rgba(59,130,246,0.1)' : model.category === 'reasoning' ? 'rgba(147,51,234,0.1)' : 'var(--surface-tertiary)'}">
+							<svg class="w-3.5 h-3.5 {model.category === 'code' ? 'text-blue-500' : model.category === 'reasoning' ? 'text-purple-500' : ''}" style="{model.category === 'chat' ? 'color: var(--content-muted)' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getCategoryIcon(model.category)} />
 							</svg>
 						</div>
 
 						<div class="flex-1 min-w-0">
 							<div class="text-[13px] font-medium truncate">{model.name}</div>
-							<div class="text-[11px] text-zinc-600 truncate">{model.description}</div>
+							<div class="text-[11px] truncate" style="color: var(--content-muted)">{model.description}</div>
 						</div>
 
 						<span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md border {getBadgeClass(model.category)} flex-shrink-0">
@@ -110,7 +111,7 @@
 						</span>
 
 						{#if currentModel === model.id}
-							<svg class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 							</svg>
 						{/if}
@@ -118,12 +119,12 @@
 				{/each}
 
 				{#if filteredModels.length === 0}
-					<div class="text-center py-4 text-zinc-600 text-xs">No models found</div>
+					<div class="text-center py-4 text-xs" style="color: var(--content-muted)">No models found</div>
 				{/if}
 			</div>
 
-			<div class="px-3 py-2 border-t border-zinc-800">
-				<div class="text-[10px] text-zinc-600">All models free via NVIDIA NIM</div>
+			<div class="px-3 py-2" style="border-top: 1px solid var(--border)">
+				<div class="text-[10px]" style="color: var(--content-muted)">All models free via NVIDIA NIM</div>
 			</div>
 		</div>
 	{/if}

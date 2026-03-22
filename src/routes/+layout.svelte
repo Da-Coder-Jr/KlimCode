@@ -6,6 +6,7 @@
 	import { loadConversations } from '$stores/chat';
 	import { loadSettings } from '$stores/settings';
 	import { checkGitHubConnection } from '$stores/github';
+	import { initTheme, setTheme, themePreference, resolvedTheme } from '$stores/theme';
 	import Sidebar from '$components/layout/Sidebar.svelte';
 
 	let isNavCollapsed = false;
@@ -13,6 +14,8 @@
 	let initialized = false;
 
 	onMount(async () => {
+		initTheme();
+
 		await checkAuth();
 		if ($currentUser) {
 			await Promise.all([
@@ -26,7 +29,6 @@
 		const saved = localStorage.getItem('klimcode_sidebar');
 		if (saved !== null) isNavCollapsed = saved === 'true';
 
-		// Global keyboard shortcuts (inspired by chat-ui)
 		function handleGlobalKeys(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'o') {
 				e.preventDefault();
@@ -55,32 +57,30 @@
 
 {#if !initialized}
 	<!-- Loading screen -->
-	<div class="flex items-center justify-center h-screen bg-zinc-950">
+	<div class="flex items-center justify-center h-screen" style="background-color: var(--surface)">
 		<div class="text-center animate-fade-in">
 			<div class="relative">
-				<div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20">
-					<span class="text-white font-bold text-xl">K</span>
-				</div>
-				<div class="absolute inset-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 mx-auto animate-ping opacity-20"></div>
+				<img src="/favicon.svg" alt="KlimCode" class="w-14 h-14 mx-auto rounded-2xl" />
+				<div class="absolute inset-0 w-14 h-14 mx-auto rounded-2xl animate-ping opacity-10" style="background-color: var(--content-muted)"></div>
 			</div>
-			<p class="text-zinc-500 text-sm mt-4 font-medium">Loading KlimCode...</p>
+			<p class="text-sm mt-4 font-medium" style="color: var(--content-muted)">Loading KlimCode...</p>
 		</div>
 	</div>
 {:else}
-	<!-- Grid-based layout inspired by HuggingFace chat-ui -->
 	<div
-		class="fixed grid h-dvh w-screen overflow-hidden text-[15px] dark:text-zinc-300 bg-zinc-950
+		class="fixed grid h-dvh w-screen overflow-hidden text-[15px]
 			{showSidebar
 				? isNavCollapsed
 					? 'grid-cols-1 md:grid-cols-[0px,1fr]'
-					: 'grid-cols-1 md:grid-cols-[280px,1fr]'
+					: 'grid-cols-1 md:grid-cols-[272px,1fr]'
 				: 'grid-cols-1'}
 			transition-[grid-template-columns] duration-300 ease-in-out md:grid-rows-[1fr]"
+		style="background-color: var(--surface); color: var(--content)"
 	>
 		{#if showSidebar}
-			<!-- Desktop Sidebar - grid-based collapse -->
+			<!-- Desktop Sidebar -->
 			<nav class="hidden md:grid max-h-dvh grid-cols-1 grid-rows-[1fr] overflow-hidden">
-				<div class="w-[280px]">
+				<div class="w-[272px]">
 					<Sidebar onClose={toggleNav} />
 				</div>
 			</nav>
@@ -89,11 +89,11 @@
 			{#if mobileSidebarOpen}
 				<div class="fixed inset-0 z-50 md:hidden">
 					<button
-						class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+						class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
 						on:click={closeMobileSidebar}
 						aria-label="Close sidebar"
 					></button>
-					<div class="absolute left-0 top-0 bottom-0 w-[280px] animate-slide-down">
+					<div class="absolute left-0 top-0 bottom-0 w-[272px] animate-slide-down">
 						<Sidebar onClose={closeMobileSidebar} />
 					</div>
 				</div>
@@ -120,7 +120,7 @@
 				<!-- Mobile toggle always visible -->
 				<button
 					on:click={toggleMobileSidebar}
-					class="md:hidden absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
+					class="md:hidden absolute top-3 left-3 z-20 p-2 rounded-xl transition-all btn-icon"
 					title="Open sidebar"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

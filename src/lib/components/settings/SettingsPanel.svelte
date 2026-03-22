@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { settings, saveSettings, saveApiKey, testApiKey } from '$stores/settings';
+	import { themePreference, setTheme } from '$stores/theme';
 	import { AVAILABLE_MODELS } from '$lib/models';
 	import GitHubConnect from '$components/github/GitHubConnect.svelte';
 
@@ -34,21 +35,60 @@
 		const target = e.target as HTMLSelectElement;
 		await saveSettings({ defaultModel: target.value });
 	}
+
+	function handleThemeChange(theme: string) {
+		setTheme(theme as 'light' | 'dark' | 'system');
+		document.documentElement.classList.add('theme-transitioning');
+		setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 250);
+	}
 </script>
 
 <div class="space-y-6">
+	<!-- Appearance / Theme -->
+	<section class="card p-5">
+		<div class="flex items-start gap-3 mb-4">
+			<div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background-color: var(--accent-subtle); border: 1px solid var(--border)">
+				<svg class="w-4 h-4" style="color: var(--content-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+				</svg>
+			</div>
+			<div>
+				<h2 class="text-[15px] font-semibold" style="color: var(--content)">Appearance</h2>
+				<p class="text-xs mt-0.5" style="color: var(--content-muted)">Choose your preferred theme</p>
+			</div>
+		</div>
+
+		<div class="flex gap-2">
+			{#each [
+				{ value: 'light', label: 'Light' },
+				{ value: 'dark', label: 'Dark' },
+				{ value: 'system', label: 'System' }
+			] as option}
+				<button
+					on:click={() => { handleThemeChange(option.value); }}
+					class="flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all"
+					style="{$themePreference === option.value
+						? `background-color: var(--content); color: var(--surface)`
+						: `background-color: var(--surface-tertiary); color: var(--content-tertiary); border: 1px solid var(--border)`}"
+				>
+					{option.label}
+				</button>
+			{/each}
+		</div>
+	</section>
+
 	<!-- NVIDIA API Key -->
 	<section class="card p-5">
 		<div class="flex items-start gap-3 mb-4">
-			<div class="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0 border border-green-500/20">
-				<svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
+				<svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
 				</svg>
 			</div>
 			<div>
-				<h2 class="text-[15px] font-semibold text-zinc-100">NVIDIA NIM API Key</h2>
-				<p class="text-xs text-zinc-500 mt-0.5">
-					Get your free API key from <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 transition-colors">build.nvidia.com</a>
+				<h2 class="text-[15px] font-semibold" style="color: var(--content)">NVIDIA NIM API Key</h2>
+				<p class="text-xs mt-0.5" style="color: var(--content-muted)">
+					Get your free API key from <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="underline transition-colors" style="color: var(--content-tertiary)">build.nvidia.com</a>
 				</p>
 			</div>
 		</div>
@@ -72,7 +112,8 @@
 				{/if}
 				<button
 					on:click={() => apiKeyVisible = !apiKeyVisible}
-					class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+					class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+					style="color: var(--content-muted)"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						{#if apiKeyVisible}
@@ -86,7 +127,7 @@
 			</div>
 
 			{#if testResult}
-				<div class="p-3 rounded-xl text-sm {testResult.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
+				<div class="p-3 rounded-xl text-sm {testResult.success ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'}">
 					{testResult.message}
 				</div>
 			{/if}
@@ -122,14 +163,14 @@
 	<!-- Model Selection -->
 	<section class="card p-5">
 		<div class="flex items-start gap-3 mb-4">
-			<div class="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0 border border-blue-500/20">
-				<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background-color: var(--accent-subtle); border: 1px solid var(--border)">
+				<svg class="w-4 h-4" style="color: var(--content-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
 				</svg>
 			</div>
 			<div>
-				<h2 class="text-[15px] font-semibold text-zinc-100">Default Model</h2>
-				<p class="text-xs text-zinc-500 mt-0.5">Choose which model to use for new conversations</p>
+				<h2 class="text-[15px] font-semibold" style="color: var(--content)">Default Model</h2>
+				<p class="text-xs mt-0.5" style="color: var(--content-muted)">Choose which model to use for new conversations</p>
 			</div>
 		</div>
 
@@ -149,14 +190,14 @@
 	<!-- GitHub -->
 	<section class="card p-5">
 		<div class="flex items-start gap-3 mb-4">
-			<div class="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-700">
-				<svg class="w-4 h-4 text-zinc-300" fill="currentColor" viewBox="0 0 24 24">
+			<div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background-color: var(--surface-tertiary); border: 1px solid var(--border)">
+				<svg class="w-4 h-4" style="color: var(--content-secondary)" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
 				</svg>
 			</div>
 			<div>
-				<h2 class="text-[15px] font-semibold text-zinc-100">GitHub Integration</h2>
-				<p class="text-xs text-zinc-500 mt-0.5">Connect GitHub to enable PR creation and repo browsing</p>
+				<h2 class="text-[15px] font-semibold" style="color: var(--content)">GitHub Integration</h2>
+				<p class="text-xs mt-0.5" style="color: var(--content-muted)">Connect GitHub to enable PR creation and repo browsing</p>
 			</div>
 		</div>
 		<GitHubConnect />
@@ -166,67 +207,67 @@
 	<section class="card p-5">
 		<div class="flex items-start gap-3 mb-5">
 			<div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
-				<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
 				</svg>
 			</div>
 			<div>
-				<h2 class="text-[15px] font-semibold text-zinc-100">Agent Settings</h2>
-				<p class="text-xs text-zinc-500 mt-0.5">Configure how the coding agent operates</p>
+				<h2 class="text-[15px] font-semibold" style="color: var(--content)">Agent Settings</h2>
+				<p class="text-xs mt-0.5" style="color: var(--content-muted)">Configure how the coding agent operates</p>
 			</div>
 		</div>
 
 		<div class="space-y-4">
 			<label class="flex items-center justify-between py-1 cursor-pointer group">
 				<div>
-					<div class="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">Auto-approve file reads</div>
-					<div class="text-xs text-zinc-600">Let agent read files without confirmation</div>
+					<div class="text-sm transition-colors" style="color: var(--content-secondary)">Auto-approve file reads</div>
+					<div class="text-xs" style="color: var(--content-muted)">Let agent read files without confirmation</div>
 				</div>
 				<div class="relative">
 					<input
 						type="checkbox"
 						checked={$settings.agent.autoApproveReads}
-						on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, autoApproveReads: el.checked } }); }}
+						on:change={(e) => { saveSettings({ agent: { ...$settings.agent, autoApproveReads: (e.currentTarget).checked } }); }}
 						class="sr-only peer"
 					/>
-					<div class="w-9 h-5 bg-zinc-700 rounded-full peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 transition-colors"></div>
-					<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+					<div class="w-9 h-5 rounded-full peer-focus-visible:ring-2 transition-colors" style="background-color: var(--surface-active)" class:!bg-emerald-500={$settings.agent.autoApproveReads}></div>
+					<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm" class:translate-x-4={$settings.agent.autoApproveReads}></div>
 				</div>
 			</label>
 
-			<div class="h-px bg-zinc-800"></div>
+			<div style="height: 1px; background-color: var(--border)"></div>
 
 			<label class="flex items-center justify-between py-1 cursor-pointer group">
 				<div>
-					<div class="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">Auto-approve commands</div>
-					<div class="text-xs text-zinc-600">Let agent run shell commands without confirmation</div>
+					<div class="text-sm transition-colors" style="color: var(--content-secondary)">Auto-approve commands</div>
+					<div class="text-xs" style="color: var(--content-muted)">Let agent run shell commands without confirmation</div>
 				</div>
 				<div class="relative">
 					<input
 						type="checkbox"
 						checked={$settings.agent.autoApproveCommands}
-						on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, autoApproveCommands: el.checked } }); }}
+						on:change={(e) => { saveSettings({ agent: { ...$settings.agent, autoApproveCommands: (e.currentTarget).checked } }); }}
 						class="sr-only peer"
 					/>
-					<div class="w-9 h-5 bg-zinc-700 rounded-full peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 transition-colors"></div>
-					<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm"></div>
+					<div class="w-9 h-5 rounded-full peer-focus-visible:ring-2 transition-colors" style="background-color: var(--surface-active)" class:!bg-emerald-500={$settings.agent.autoApproveCommands}></div>
+					<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm" class:translate-x-4={$settings.agent.autoApproveCommands}></div>
 				</div>
 			</label>
 
-			<div class="h-px bg-zinc-800"></div>
+			<div style="height: 1px; background-color: var(--border)"></div>
 
 			<div class="py-1">
-				<label class="text-sm text-zinc-300 block mb-2">Sandbox timeout</label>
+				<label class="text-sm block mb-2" style="color: var(--content-secondary)">Sandbox timeout</label>
 				<div class="flex items-center gap-3">
 					<input
 						type="number"
 						value={$settings.agent.sandboxTimeout / 1000}
-						on:change={(e) => { const el = /** @type {HTMLInputElement} */ (e.target); saveSettings({ agent: { ...$settings.agent, sandboxTimeout: parseInt(el.value) * 1000 } }); }}
+						on:change={(e) => { saveSettings({ agent: { ...$settings.agent, sandboxTimeout: parseInt(e.currentTarget.value) * 1000 } }); }}
 						class="input-field w-24 text-sm"
 						min="5"
 						max="300"
 					/>
-					<span class="text-xs text-zinc-600">seconds</span>
+					<span class="text-xs" style="color: var(--content-muted)">seconds</span>
 				</div>
 			</div>
 		</div>

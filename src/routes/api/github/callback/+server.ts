@@ -6,6 +6,7 @@ import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async (event) => {
 	const code = event.url.searchParams.get('code');
+	const state = event.url.searchParams.get('state');
 	const error = event.url.searchParams.get('error');
 
 	// Handle GitHub OAuth errors (user denied, etc.)
@@ -18,6 +19,18 @@ export const GET: RequestHandler = async (event) => {
 		console.error('[KlimCode] GitHub callback: no authorization code');
 		throw redirect(302, '/?error=no_code');
 	}
+
+	// Validate OAuth state parameter to prevent CSRF attacks
+	const storedState = event.cookies.get('klimcode_oauth_state');
+	if (!state || !storedState || state !== storedState) {
+		console.error('[KlimCode] GitHub OAuth state mismatch - possible CSRF attack');
+		// Clear the state cookie
+		event.cookies.delete('klimcode_oauth_state', { path: '/' });
+		throw redirect(302, '/?error=invalid_state');
+	}
+
+	// Clear the state cookie after validation
+	event.cookies.delete('klimcode_oauth_state', { path: '/' });
 
 	const clientId = env.GITHUB_CLIENT_ID;
 	const clientSecret = env.GITHUB_CLIENT_SECRET;

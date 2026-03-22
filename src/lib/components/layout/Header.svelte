@@ -54,7 +54,6 @@
 	}
 </script>
 
-<!-- Navbar with gradient fade - inspired by open-webui -->
 <header class="sticky top-0 z-30 w-full pt-0.5 pb-1 flex-shrink-0">
 	<div class="navbar-gradient pb-4">
 		<div class="flex items-center justify-between px-4 h-12">
@@ -62,16 +61,16 @@
 				{#if $activeConversation}
 					<div class="flex items-center gap-2.5 min-w-0 ml-10 md:ml-10">
 						{#if $activeConversation.mode === 'agent'}
-							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex-shrink-0">
-								<div class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse-slow"></div>
+							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex-shrink-0">
+								<div class="w-1 h-1 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse-slow"></div>
 								Agent
 							</span>
 						{:else}
-							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 flex-shrink-0">
+							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md flex-shrink-0" style="color: var(--content-tertiary); background-color: var(--surface-tertiary); border: 1px solid var(--border)">
 								Chat
 							</span>
 						{/if}
-						<h1 class="text-zinc-400 text-sm truncate">
+						<h1 class="text-sm truncate" style="color: var(--content-tertiary)">
 							{$activeConversation.title}
 						</h1>
 					</div>
@@ -110,10 +109,10 @@
 				{#if $activeConversation?.mode === 'agent'}
 					<button
 						on:click={onToggleAgent}
-						class="p-2 rounded-lg transition-all duration-150
-							{showAgentPanel
-								? 'bg-blue-600 text-white'
-								: 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}"
+						class="p-2 rounded-lg transition-all duration-150"
+						class:bg-emerald-500={showAgentPanel}
+						class:text-white={showAgentPanel}
+						style="{!showAgentPanel ? 'color: var(--content-muted)' : ''}"
 						title="Toggle Agent Panel"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

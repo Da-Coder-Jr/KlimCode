@@ -4,7 +4,7 @@ import type { AppSettings } from '$types/core';
 const DEFAULT_SETTINGS: AppSettings = {
 	nvidiaApiKey: '',
 	defaultModel: 'meta/llama-3.3-70b-instruct',
-	theme: 'dark',
+	theme: 'system',
 	github: {
 		connected: false
 	},
