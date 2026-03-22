@@ -4,18 +4,26 @@
 	import { createConversation } from '$stores/chat';
 	import { settings } from '$stores/settings';
 	import { inputMessage } from '$stores/chat';
+	import { AVAILABLE_MODELS } from '$lib/models';
 	import LoginForm from '$components/auth/LoginForm.svelte';
 
 	let messageInput = '';
 	let isCreating = false;
 	let fileInput: HTMLInputElement;
 	let attachedFiles: { name: string; content: string; type: string; preview?: string }[] = [];
+	let agentMode = false;
+	let modelSelectorOpen = false;
+	let modelSearchQuery = '';
+
+	$: selectedModel = AVAILABLE_MODELS.find(m => m.id === $settings.defaultModel) || AVAILABLE_MODELS[0];
+	$: filteredModels = modelSearchQuery
+		? AVAILABLE_MODELS.filter(m => m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()))
+		: AVAILABLE_MODELS;
 
 	async function startChatWithMessage() {
 		if ((!messageInput.trim() && attachedFiles.length === 0) || isCreating) return;
 		isCreating = true;
 
-		// Build final message with file contents
 		let finalMessage = messageInput;
 		for (const file of attachedFiles) {
 			if (file.type.startsWith('image/')) {
@@ -25,7 +33,8 @@
 			}
 		}
 
-		const id = await createConversation('chat', $settings.defaultModel);
+		const mode = agentMode ? 'agent' : 'chat';
+		const id = await createConversation(mode, $settings.defaultModel);
 		inputMessage.set(finalMessage);
 		goto(`/chat/${id}`);
 	}
@@ -56,7 +65,7 @@
 		if (!files || files.length === 0) return;
 
 		for (const file of Array.from(files)) {
-			const maxSize = 5 * 1024 * 1024; // 5MB for images
+			const maxSize = 5 * 1024 * 1024;
 			if (file.size > maxSize) {
 				attachedFiles = [...attachedFiles, {
 					name: file.name,
@@ -67,7 +76,6 @@
 			}
 
 			if (file.type.startsWith('image/')) {
-				// Create a preview URL for images
 				const preview = URL.createObjectURL(file);
 				const reader = new FileReader();
 				reader.onload = () => {
@@ -104,6 +112,12 @@
 		const file = attachedFiles[index];
 		if (file.preview) URL.revokeObjectURL(file.preview);
 		attachedFiles = attachedFiles.filter((_, i) => i !== index);
+	}
+
+	function selectModel(modelId: string) {
+		settings.update(s => ({ ...s, defaultModel: modelId }));
+		modelSelectorOpen = false;
+		modelSearchQuery = '';
 	}
 
 	const suggestions = [
@@ -147,7 +161,6 @@
 						<div class="flex flex-wrap gap-2 mb-2 px-1">
 							{#each attachedFiles as file, i}
 								{#if file.preview}
-									<!-- Image preview -->
 									<div class="relative group">
 										<img src={file.preview} alt={file.name} class="w-16 h-16 rounded-lg object-cover" style="border: 1px solid var(--border)" />
 										<button
@@ -160,7 +173,6 @@
 										</button>
 									</div>
 								{:else}
-									<!-- File preview -->
 									<div class="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
 										<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -194,7 +206,7 @@
 						bind:this={fileInput}
 						type="file"
 						multiple
-						accept=".txt,.md,.js,.ts,.py,.json,.csv,.html,.css,.jsx,.tsx,.go,.rs,.java,.c,.cpp,.h,.yml,.yaml,.toml,.xml,.sql,.sh,.bash,.env,.gitignore,.svelte,.vue,image/*"
+						accept=".txt,.md,.js,.ts,.py,.json,.csv,.html,.css,.jsx,.tsx,.go,.rs,.java,.c,.cpp,.h,.yml,.yaml,.toml,.xml,.sql,.sh,.bash,.svelte,.vue,image/*"
 						class="hidden"
 						on:change={handleFileChange}
 					/>
@@ -214,15 +226,68 @@
 								<span>Attach</span>
 							</button>
 
+							<!-- Agent mode toggle -->
 							<button
-								on:click={startAgent}
-								class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-all"
+								on:click={() => agentMode = !agentMode}
+								class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
+								style="{agentMode
+									? 'color: rgb(5, 150, 105); background-color: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3)'
+									: 'color: var(--content-muted); border-color: var(--border); background-color: transparent'}"
 							>
 								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 								</svg>
-								Agent Mode
+								Agent {agentMode ? 'On' : 'Off'}
 							</button>
+
+							<!-- Model selector -->
+							<div class="relative">
+								<button
+									on:click={() => modelSelectorOpen = !modelSelectorOpen}
+									class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+									style="color: var(--content-muted); border: 1px solid var(--border)"
+								>
+									<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+									<span class="truncate max-w-[100px]">{selectedModel.name}</span>
+									<svg class="w-3 h-3" class:rotate-180={modelSelectorOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									</svg>
+								</button>
+
+								{#if modelSelectorOpen}
+									<button class="fixed inset-0 z-40" on:click={() => { modelSelectorOpen = false; modelSearchQuery = ''; }} aria-label="Close"></button>
+									<div class="absolute bottom-full left-0 mb-1.5 w-72 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+										<div class="px-3 py-2" style="border-bottom: 1px solid var(--border)">
+											<input
+												bind:value={modelSearchQuery}
+												type="text"
+												placeholder="Search models..."
+												class="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+												style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: none"
+												autofocus
+											/>
+										</div>
+										<div class="max-h-[240px] overflow-y-auto p-1.5">
+											{#each filteredModels as model}
+												<button
+													on:click={() => selectModel(model.id)}
+													class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all text-xs"
+													style="{$settings.defaultModel === model.id
+														? `background-color: var(--surface-active); color: var(--content)`
+														: `color: var(--content-tertiary)`}"
+												>
+													<span class="flex-1 font-medium truncate">{model.name}</span>
+													{#if $settings.defaultModel === model.id}
+														<svg class="w-3 h-3 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+														</svg>
+													{/if}
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
 						</div>
 						<button
 							on:click={startChatWithMessage}
@@ -271,7 +336,7 @@
 					style="border: 1px solid var(--border); color: var(--content-tertiary)"
 				>
 					<svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
 					</svg>
 					New Agent
 				</button>

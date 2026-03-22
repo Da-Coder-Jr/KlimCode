@@ -10,8 +10,14 @@
 	let testing = false;
 	let saving = false;
 	let saved = false;
+	let modelDropdownOpen = false;
+	let modelSearchQuery = '';
 
 	$: hasApiKey = $settings.nvidiaApiKey.length > 0;
+	$: selectedModel = AVAILABLE_MODELS.find(m => m.id === $settings.defaultModel) || AVAILABLE_MODELS[0];
+	$: filteredModels = modelSearchQuery
+		? AVAILABLE_MODELS.filter(m => m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) || m.description.toLowerCase().includes(modelSearchQuery.toLowerCase()))
+		: AVAILABLE_MODELS;
 
 	async function handleTestKey() {
 		if (!apiKeyInput) return;
@@ -31,9 +37,10 @@
 		}
 	}
 
-	async function handleModelChange(e: Event) {
-		const target = e.target as HTMLSelectElement;
-		await saveSettings({ defaultModel: target.value });
+	async function handleModelSelect(modelId: string) {
+		modelDropdownOpen = false;
+		modelSearchQuery = '';
+		await saveSettings({ defaultModel: modelId });
 	}
 
 	function handleThemeChange(theme: string) {
@@ -41,7 +48,17 @@
 		document.documentElement.classList.add('theme-transitioning');
 		setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 250);
 	}
+
+	function getCategoryBadge(category: string): { class: string; label: string } {
+		switch (category) {
+			case 'code': return { class: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20', label: 'Code' };
+			case 'reasoning': return { class: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', label: 'Reasoning' };
+			default: return { class: 'border', label: 'Chat' };
+		}
+	}
 </script>
+
+<svelte:window on:keydown={(e) => { if (e.key === 'Escape') modelDropdownOpen = false; }} />
 
 <div class="space-y-6">
 	<!-- Appearance / Theme -->
@@ -154,13 +171,13 @@
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
 				</svg>
 				<div class="text-[11px] leading-relaxed" style="color: var(--content-muted)">
-					Your API key is encrypted with <span style="color: var(--content-tertiary)">AES-256-GCM</span> before storage. It is never exposed in the browser or logs. Set <code class="px-1 rounded text-[10px]" style="color: var(--content-tertiary); background-color: var(--code-bg)">ENCRYPTION_SECRET</code> env var for production.
+					Your API key is encrypted with <span style="color: var(--content-tertiary)">AES-256-GCM</span> before storage. It is never exposed in the browser or logs.
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<!-- Model Selection -->
+	<!-- Model Selection - Custom Dropdown -->
 	<section class="card p-5">
 		<div class="flex items-start gap-3 mb-4">
 			<div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background-color: var(--accent-subtle); border: 1px solid var(--border)">
@@ -174,17 +191,76 @@
 			</div>
 		</div>
 
-		<select
-			value={$settings.defaultModel}
-			on:change={handleModelChange}
-			class="input-field"
-		>
-			{#each AVAILABLE_MODELS || [] as model}
-				<option value={model.id}>
-					{model.name} — {model.description}
-				</option>
-			{/each}
-		</select>
+		<!-- Custom dropdown -->
+		<div class="relative">
+			<button
+				on:click={() => modelDropdownOpen = !modelDropdownOpen}
+				class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all"
+				style="background-color: var(--input-bg); border: 1px solid var(--input-border); color: var(--content)"
+			>
+				<div class="flex items-center gap-3 min-w-0">
+					<span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md border {getCategoryBadge(selectedModel.category).class} flex-shrink-0">
+						{getCategoryBadge(selectedModel.category).label}
+					</span>
+					<div class="min-w-0">
+						<span class="font-medium">{selectedModel.name}</span>
+						<span class="text-xs ml-2" style="color: var(--content-muted)">{selectedModel.description}</span>
+					</div>
+				</div>
+				<svg class="w-4 h-4 flex-shrink-0 transition-transform" class:rotate-180={modelDropdownOpen} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</button>
+
+			{#if modelDropdownOpen}
+				<button class="fixed inset-0 z-40" on:click={() => { modelDropdownOpen = false; modelSearchQuery = ''; }} aria-label="Close"></button>
+
+				<div class="absolute top-full left-0 right-0 mt-1.5 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+					<div class="px-3 py-2.5" style="border-bottom: 1px solid var(--border)">
+						<div class="relative">
+							<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+							</svg>
+							<input
+								bind:value={modelSearchQuery}
+								type="text"
+								placeholder="Search models..."
+								class="w-full rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none"
+								style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: 1px solid transparent"
+								autofocus
+							/>
+						</div>
+					</div>
+
+					<div class="max-h-[280px] overflow-y-auto p-1.5">
+						{#each filteredModels as model}
+							<button
+								on:click={() => handleModelSelect(model.id)}
+								class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-100 hover:opacity-90"
+								style="{$settings.defaultModel === model.id
+									? `background-color: var(--surface-active); color: var(--content)`
+									: `color: var(--content-tertiary)`}"
+							>
+								<div class="flex-1 min-w-0">
+									<div class="text-[13px] font-medium truncate">{model.name}</div>
+									<div class="text-[11px] truncate" style="color: var(--content-muted)">{model.description}</div>
+								</div>
+
+								<span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md border {getCategoryBadge(model.category).class} flex-shrink-0">
+									{getCategoryBadge(model.category).label}
+								</span>
+
+								{#if $settings.defaultModel === model.id}
+									<svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</div>
 	</section>
 
 	<!-- GitHub -->

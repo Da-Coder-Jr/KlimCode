@@ -15,9 +15,9 @@
 </script>
 
 {#if $githubConnected}
-	<div class="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 transition-all">
+	<div class="flex items-center gap-3 p-3.5 rounded-xl" style="background-color: var(--surface-tertiary); border: 1px solid var(--border)">
 		<div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
-			<svg class="w-4.5 h-4.5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 			</svg>
 		</div>

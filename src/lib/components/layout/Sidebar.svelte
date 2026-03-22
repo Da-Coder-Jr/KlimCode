@@ -121,16 +121,11 @@
 
 <aside class="flex flex-col h-full w-full" style="background-color: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border)">
 	<!-- Header -->
-	<div class="flex items-center justify-between px-3.5 py-3.5">
+	<div class="flex items-center px-3.5 py-3.5">
 		<a href="/" class="flex items-center gap-2.5 group hover:opacity-80 transition-opacity">
 			<img src="/favicon.svg" alt="KlimCode" class="w-7 h-7 rounded-lg shadow-soft" />
 			<span class="font-semibold text-[15px] tracking-tight" style="color: var(--content)">KlimCode</span>
 		</a>
-		<button on:click={onClose} class="p-1.5 rounded-lg transition-all hover:bg-[var(--sidebar-hover)]" style="color: var(--content-muted)" title="Close sidebar">
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4h18M3 8h18M3 12h12M3 16h12M3 20h18" />
-			</svg>
-		</button>
 	</div>
 
 	<!-- New Conversation -->

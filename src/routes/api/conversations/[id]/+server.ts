@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getConversation, updateConversationTitle, deleteConversation } from '$server/db/queries';
+import { getConversation, updateConversationTitle, updateConversationModel, deleteConversation } from '$server/db/queries';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ message: 'Not authenticated' }, { status: 401 });
@@ -11,8 +11,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ message: 'Not authenticated' }, { status: 401 });
-	const { title } = await request.json();
-	if (title) await updateConversationTitle(params.id, locals.user.id, title);
+	const body = await request.json();
+	if (body.title) await updateConversationTitle(params.id, locals.user.id, body.title);
+	if (body.model) await updateConversationModel(params.id, locals.user.id, body.model);
 	return json({ success: true });
 };
 

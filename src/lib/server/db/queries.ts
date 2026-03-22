@@ -197,6 +197,14 @@ export async function updateConversationTitle(id: string, userId: string, title:
 	);
 }
 
+export async function updateConversationModel(id: string, userId: string, model: string): Promise<void> {
+	await ensureDb();
+	await query(
+		'UPDATE conversations SET model = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3',
+		[model, id, userId]
+	);
+}
+
 export async function updateConversationGithub(id: string, repo: string, branch: string): Promise<void> {
 	await ensureDb();
 	await query(

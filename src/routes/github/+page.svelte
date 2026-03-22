@@ -35,10 +35,12 @@
 
 		<div class="space-y-6">
 			<section class="card p-5">
-				<h2 class="text-[15px] font-semibold mb-4 flex items-center gap-2" style="color: var(--content)">
-					<svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-5.37a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-					</svg>
+				<h2 class="text-[15px] font-semibold mb-4 flex items-center gap-2.5" style="color: var(--content)">
+					{#if $githubConnected}
+						<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+					{:else}
+						<div class="w-2 h-2 rounded-full" style="background-color: var(--content-muted)"></div>
+					{/if}
 					Connection
 				</h2>
 				<GitHubConnect />
@@ -79,9 +81,9 @@
 					</h2>
 					<div class="space-y-3">
 						{#each [
-							{ step: '1', title: 'Start an Agent conversation', desc: 'Select a repo and describe the changes you want', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
-							{ step: '2', title: 'Agent works autonomously', desc: 'Reads files, writes code, runs analysis for you', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
-							{ step: '3', title: 'Review and merge', desc: 'Agent creates a PR draft for your review', icon: 'M5 13l4 4L19 7' }
+							{ step: '1', title: 'Start an Agent conversation', desc: 'Select a repo and describe the changes you want' },
+							{ step: '2', title: 'Agent works autonomously', desc: 'Reads files, writes code, runs analysis for you' },
+							{ step: '3', title: 'Review and merge', desc: 'Agent creates a PR draft for your review' }
 						] as item}
 							<div class="flex gap-3 items-start p-3 rounded-xl transition-colors" style="background-color: var(--surface-tertiary)">
 								<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500/10 border border-emerald-500/20">
