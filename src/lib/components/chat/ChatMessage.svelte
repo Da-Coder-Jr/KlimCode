@@ -115,7 +115,7 @@
 							bind:value={editText}
 							on:keydown={handleEditKeydown}
 							rows="5"
-							class="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-[15px] text-zinc-200 resize-y focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 leading-relaxed"
+							class="w-full rounded-xl px-4 py-3 text-[15px] resize-y focus:outline-none leading-relaxed input-field"
 						></textarea>
 						<div class="flex items-center gap-2 mt-2">
 							<button on:click={saveEdit} class="btn-primary text-xs py-1.5 px-3">
@@ -124,7 +124,7 @@
 							<button on:click={cancelEdit} class="text-xs font-medium py-1.5 px-3 transition-colors" style="color: var(--content-muted)">
 								Cancel
 							</button>
-							<span class="text-[10px] text-zinc-600 ml-auto">Ctrl+Enter to save</span>
+							<span class="text-[10px] ml-auto" style="color: var(--content-muted)">Ctrl+Enter to save</span>
 						</div>
 					{:else}
 						<p class="text-[15px] whitespace-pre-wrap break-words leading-relaxed" style="color: var(--content-secondary)">{message.content}</p>
@@ -182,7 +182,7 @@
 					{#if isAssistant}
 						<button
 							on:click={handleRegenerate}
-							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all"
+							class="p-1.5 rounded-lg transition-all btn-icon"
 							title="Regenerate response"
 						>
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

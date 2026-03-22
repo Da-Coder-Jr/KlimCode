@@ -76,7 +76,7 @@
 					</div>
 				{:else}
 					<div class="flex items-center gap-2 ml-10 md:ml-10">
-						<span class="text-zinc-300 font-medium text-sm">KlimCode</span>
+						<span class="font-medium text-sm" style="color: var(--content-secondary)">KlimCode</span>
 					</div>
 				{/if}
 			</div>
@@ -91,7 +91,7 @@
 					<!-- Share button - copies conversation as markdown -->
 					<button
 						on:click={handleShare}
-						class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all relative"
+						class="p-2 rounded-lg transition-all relative btn-icon"
 						title={shareCopied ? 'Copied to clipboard!' : 'Share conversation'}
 					>
 						{#if shareCopied}

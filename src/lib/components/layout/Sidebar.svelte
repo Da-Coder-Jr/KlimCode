@@ -122,13 +122,13 @@
 <aside class="flex flex-col h-full w-full" style="background-color: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border)">
 	<!-- Header -->
 	<div class="flex items-center justify-between px-3.5 py-3.5">
-		<a href="/" class="flex items-center gap-2.5 group">
-			<img src="/favicon.svg" alt="KlimCode" class="w-7 h-7 rounded-lg" />
+		<a href="/" class="flex items-center gap-2.5 group hover:opacity-80 transition-opacity">
+			<img src="/favicon.svg" alt="KlimCode" class="w-7 h-7 rounded-lg shadow-soft" />
 			<span class="font-semibold text-[15px] tracking-tight" style="color: var(--content)">KlimCode</span>
 		</a>
-		<button on:click={onClose} class="p-1.5 rounded-lg transition-all" style="color: var(--content-muted)" title="Close sidebar">
+		<button on:click={onClose} class="p-1.5 rounded-lg transition-all hover:bg-[var(--sidebar-hover)]" style="color: var(--content-muted)" title="Close sidebar">
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4h18M3 8h18M3 12h12M3 16h12M3 20h18" />
 			</svg>
 		</button>
 	</div>
@@ -138,7 +138,7 @@
 		<div class="relative">
 			<button
 				on:click={() => showNewMenu = !showNewMenu}
-				class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+				class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-soft active:scale-[0.98]"
 				style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: 1px solid var(--border)"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,7 +230,7 @@
 					<a
 						href="/chat/{conv.id}"
 						on:click|preventDefault={() => handleSelect(conv.id)}
-						class="group flex h-[2.25rem] items-center gap-2 rounded-lg pl-2.5 pr-2 transition-all duration-100"
+						class="group flex h-[2.25rem] items-center gap-2 rounded-lg pl-2.5 pr-2 transition-all duration-150"
 						style="{$activeConversationId === conv.id
 							? `background-color: var(--sidebar-active); color: var(--content)`
 							: `color: var(--content-tertiary)`}"
@@ -300,7 +300,7 @@
 		<!-- Theme Toggle -->
 		<button
 			on:click={cycleTheme}
-			class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all"
+			class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 hover:bg-[var(--sidebar-hover)]"
 			style="color: var(--content-tertiary)"
 			title="Toggle theme: {$themePreference}"
 		>
@@ -318,7 +318,7 @@
 
 		<a
 			href="/github"
-			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all"
+			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 hover:bg-[var(--sidebar-hover)]"
 			style="{$page.url.pathname === '/github'
 				? `background-color: var(--sidebar-active); color: var(--content)`
 				: `color: var(--content-tertiary)`}"
@@ -333,7 +333,7 @@
 		</a>
 		<a
 			href="/settings"
-			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all"
+			class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 hover:bg-[var(--sidebar-hover)]"
 			style="{$page.url.pathname === '/settings'
 				? `background-color: var(--sidebar-active); color: var(--content)`
 				: `color: var(--content-tertiary)`}"
