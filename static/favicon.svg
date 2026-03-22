@@ -1,10 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="kg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#338dff"/>
-      <stop offset="100%" style="stop-color:#1457e1"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#kg)"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="36" fill="white">K</text>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="100" fill="#0F171F"/>
+  
+  <rect x="25" y="25" width="462" height="462" rx="85" stroke="#1F2937" stroke-width="4"/>
+
+  <path d="M140 140H215V245L295 140H380L285 256L385 372H300L215 270V372H140V140Z" fill="#F3E9DC"/>
+
+  <path d="M435 256C400 265 390 275 385 310C380 275 370 265 335 256C370 247 380 237 385 202C390 237 400 247 435 256Z" fill="#F9A875"/>
 </svg>
