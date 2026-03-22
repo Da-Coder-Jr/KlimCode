@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Conversation, Message, StreamChunk, AgentStep } from '$types/core';
+import { selectedRepo } from '$stores/github';
 
 export const conversations = writable<Conversation[]>([]);
 export const activeConversationId = writable<string | null>(null);
@@ -227,15 +228,23 @@ export async function sendMessage(content: string): Promise<void> {
 	try {
 		currentAbortController = new AbortController();
 		const endpoint = conv.mode === 'agent' ? '/api/agent' : '/api/chat';
+		const repo = get(selectedRepo);
+		const body: Record<string, unknown> = {
+			conversationId: convId,
+			message: content,
+			model: conv.model
+		};
+		// Pass repo info for agent mode
+		if (conv.mode === 'agent' && repo) {
+			body.repoOwner = repo.owner;
+			body.repoName = repo.name;
+			body.baseBranch = repo.defaultBranch || 'main';
+		}
 		const res = await fetch(endpoint, {
 			signal: currentAbortController.signal,
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				conversationId: convId,
-				message: content,
-				model: conv.model
-			})
+			body: JSON.stringify(body)
 		});
 
 		if (!res.ok) {

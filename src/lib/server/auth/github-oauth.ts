@@ -72,7 +72,7 @@ export async function getGitHubUser(accessToken: string) {
 }
 
 export async function authenticateWithGitHub(
-	code: string, clientId: string, clientSecret: string
+	code: string, clientId: string, clientSecret: string, existingUserId?: string
 ): Promise<{ user: User; session: Session; isNew: boolean }> {
 	const accessToken = await exchangeGitHubCode(code, clientId, clientSecret);
 	const ghUser = await getGitHubUser(accessToken);
@@ -83,9 +83,25 @@ export async function authenticateWithGitHub(
 	let user = await getUserByGithubId(githubId);
 	let isNew = false;
 
-	if (!user) {
-		// Create new user with GitHub login as username
-		user = await createUser(ghUser.login, ghUser.name || ghUser.login);
+	if (user) {
+		// Existing user found by GitHub ID - update their token
+	} else if (existingUserId) {
+		// User is already logged in and connecting GitHub to their account
+		const { getUserById } = await import('$server/db/queries');
+		user = await getUserById(existingUserId);
+		if (!user) {
+			throw new Error('Logged-in user not found');
+		}
+	} else {
+		// New GitHub user - create account with unique username
+		let username = ghUser.login.toLowerCase();
+		const { getUserByUsername } = await import('$server/db/queries');
+		const existing = await getUserByUsername(username);
+		if (existing) {
+			// Username taken - append GitHub ID to make it unique
+			username = `${username}-${githubId.slice(-4)}`;
+		}
+		user = await createUser(username, ghUser.name || ghUser.login);
 		isNew = true;
 	}
 
