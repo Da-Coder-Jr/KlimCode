@@ -2,10 +2,12 @@
 	import type { Message } from '$types/core';
 	import { renderMarkdown } from '$utils/markdown';
 	import { currentUser } from '$stores/auth';
-	import { onMount } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 
 	export let message: Message;
 	export let isStreaming = false;
+
+	const dispatch = createEventDispatcher();
 
 	let messageEl: HTMLDivElement;
 	let copied = false;
@@ -36,13 +38,23 @@
 	}
 
 	function saveEdit() {
-		// Would dispatch event to update message
+		if (editText.trim() && editText.trim() !== message.content) {
+			dispatch('edit', { messageId: message.id, content: editText.trim() });
+		}
 		editMode = false;
 		editText = '';
 	}
 
 	function handleEditKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') cancelEdit();
+		if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault();
+			saveEdit();
+		}
+	}
+
+	function handleRegenerate() {
+		dispatch('regenerate', { messageId: message.id });
 	}
 
 	onMount(() => {
@@ -106,7 +118,7 @@
 							bind:value={editText}
 							on:keydown={handleEditKeydown}
 							rows="5"
-							class="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-[15px] text-zinc-200 resize-y focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 leading-relaxed"
+							class="w-full rounded-xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-[15px] text-zinc-200 resize-y focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 leading-relaxed"
 						></textarea>
 						<div class="flex items-center gap-2 mt-2">
 							<button on:click={saveEdit} class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">
@@ -115,6 +127,7 @@
 							<button on:click={cancelEdit} class="px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors">
 								Cancel
 							</button>
+							<span class="text-[10px] text-zinc-600 ml-auto">Ctrl+Enter to save</span>
 						</div>
 					{:else}
 						<p class="text-[15px] text-zinc-300 whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
@@ -170,9 +183,10 @@
 						</button>
 					{/if}
 
-					<!-- Retry button (for assistant messages) - inspired by chat-ui -->
+					<!-- Retry/Regenerate button (for assistant messages) - inspired by chat-ui -->
 					{#if isAssistant}
 						<button
+							on:click={handleRegenerate}
 							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all"
 							title="Regenerate response"
 						>

@@ -101,6 +101,46 @@ export async function renameConversation(conversationId: string, title: string):
 	}
 }
 
+// Edit a user message and resend - truncates conversation at that point
+export async function editAndResend(messageId: string, newContent: string): Promise<void> {
+	const currentMessages = get(messages);
+	const msgIndex = currentMessages.findIndex((m) => m.id === messageId);
+	if (msgIndex < 0) return;
+
+	// Keep messages up to (but not including) the edited message, then add the new one
+	const truncated = currentMessages.slice(0, msgIndex);
+	messages.set(truncated);
+
+	// Send the edited content as a new message
+	await sendMessage(newContent);
+}
+
+// Regenerate the last assistant response
+export async function regenerateLastResponse(): Promise<void> {
+	const currentMessages = get(messages);
+	if (currentMessages.length === 0) return;
+
+	// Find the last user message
+	let lastUserMsgIndex = -1;
+	for (let i = currentMessages.length - 1; i >= 0; i--) {
+		if (currentMessages[i].role === 'user') {
+			lastUserMsgIndex = i;
+			break;
+		}
+	}
+
+	if (lastUserMsgIndex < 0) return;
+
+	const lastUserContent = currentMessages[lastUserMsgIndex].content;
+
+	// Remove the last assistant message(s) after the user message
+	const truncated = currentMessages.slice(0, lastUserMsgIndex);
+	messages.set(truncated);
+
+	// Resend the last user message
+	await sendMessage(lastUserContent);
+}
+
 export async function sendMessage(content: string): Promise<void> {
 	const convId = get(activeConversationId);
 	if (!convId || !content.trim()) return;

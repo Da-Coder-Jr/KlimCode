@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { afterUpdate, tick, onMount, onDestroy } from 'svelte';
+	import { afterUpdate, tick, onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import type { Message } from '$types/core';
 	import ChatMessage from './ChatMessage.svelte';
 	import { isStreaming, streamingContent, inputMessage } from '$stores/chat';
 	import { fade } from 'svelte/transition';
 
 	export let messages: Message[] = [];
+
+	const dispatch = createEventDispatcher();
 
 	let scrollContainer: HTMLDivElement;
 	let shouldAutoScroll = true;
@@ -53,6 +55,14 @@
 
 	function useSuggestion(text: string) {
 		inputMessage.set(text);
+	}
+
+	function handleEdit(e: CustomEvent<{ messageId: string; content: string }>) {
+		dispatch('edit', e.detail);
+	}
+
+	function handleRegenerate(e: CustomEvent<{ messageId: string }>) {
+		dispatch('regenerate', e.detail);
 	}
 
 	$: streamingMsg = $isStreaming && $streamingContent ? {
@@ -106,7 +116,7 @@
 	{:else}
 		<div class="pb-4">
 			{#each messages as message (message.id)}
-				<ChatMessage {message} />
+				<ChatMessage {message} on:edit={handleEdit} on:regenerate={handleRegenerate} />
 			{/each}
 
 			{#if streamingMsg}

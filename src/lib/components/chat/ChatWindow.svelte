@@ -2,7 +2,7 @@
 	import MessageList from './MessageList.svelte';
 	import ChatInput from './ChatInput.svelte';
 	import AgentStepsPanel from '../agent/AgentStepsPanel.svelte';
-	import { messages, sendMessage, activeConversation, agentSteps } from '$stores/chat';
+	import { messages, sendMessage, activeConversation, agentSteps, editAndResend, regenerateLastResponse } from '$stores/chat';
 
 	export let showAgentPanel = false;
 
@@ -12,6 +12,14 @@
 		await sendMessage(e.detail.message);
 	}
 
+	async function handleEdit(e: CustomEvent<{ messageId: string; content: string }>) {
+		await editAndResend(e.detail.messageId, e.detail.content);
+	}
+
+	async function handleRegenerate(e: CustomEvent<{ messageId: string }>) {
+		await regenerateLastResponse();
+	}
+
 	$: isAgent = $activeConversation?.mode === 'agent';
 </script>
 
@@ -19,7 +27,7 @@
 <div class="flex h-full overflow-hidden">
 	<!-- Main Chat Area -->
 	<div class="flex-1 flex flex-col min-w-0">
-		<MessageList messages={$messages} />
+		<MessageList messages={$messages} on:edit={handleEdit} on:regenerate={handleRegenerate} />
 		<ChatInput on:send={handleSend} bind:this={chatInput} />
 	</div>
 

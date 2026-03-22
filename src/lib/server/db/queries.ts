@@ -2,6 +2,49 @@ import crypto from 'crypto';
 import { query, queryOne, queryMany, ensureDb } from './index';
 import type { User, Session, Conversation, Message } from '$types/core';
 
+// Encryption key derivation for API key storage
+// Uses ENCRYPTION_SECRET env var or falls back to a derived key from a static salt + machine-specific data
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
+
+function getEncryptionKey(): Buffer {
+	const secret = process.env.ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'klimcode-default-encryption-key-change-in-production';
+	return crypto.scryptSync(secret, 'klimcode-api-key-salt', 32);
+}
+
+function encryptApiKey(plaintext: string): string {
+	const key = getEncryptionKey();
+	const iv = crypto.randomBytes(IV_LENGTH);
+	const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+	const authTag = cipher.getAuthTag();
+	// Format: iv:authTag:encrypted (all base64)
+	return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+}
+
+function decryptApiKey(encryptedStr: string): string {
+	// Support legacy base64-only format (migration path)
+	if (!encryptedStr.includes(':')) {
+		return Buffer.from(encryptedStr, 'base64').toString('utf-8');
+	}
+
+	const parts = encryptedStr.split(':');
+	if (parts.length !== 3) {
+		// Fallback to legacy format
+		return Buffer.from(encryptedStr, 'base64').toString('utf-8');
+	}
+
+	const key = getEncryptionKey();
+	const iv = Buffer.from(parts[0], 'base64');
+	const authTag = Buffer.from(parts[1], 'base64');
+	const encrypted = Buffer.from(parts[2], 'base64');
+
+	const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	decipher.setAuthTag(authTag);
+	return decipher.update(encrypted) + decipher.final('utf8');
+}
+
 // ── User Queries ──
 
 export async function createUser(username: string, displayName: string, passwordHash?: string): Promise<User> {
@@ -218,14 +261,12 @@ export async function getMessages(conversationId: string, limit = 100, offset = 
 	return rows.map(mapMessage);
 }
 
-// ── API Key Queries ──
+// ── API Key Queries (AES-256-GCM encrypted) ──
 
 export async function storeApiKey(userId: string, apiKey: string, label?: string): Promise<void> {
 	await ensureDb();
 	const id = crypto.randomUUID();
-	// Base64 encode - note: this is encoding, not encryption
-	// For production, use proper encryption with a secret key
-	const encrypted = Buffer.from(apiKey).toString('base64');
+	const encrypted = encryptApiKey(apiKey);
 
 	// Delete old keys first to avoid accumulation
 	await query("DELETE FROM api_keys WHERE user_id = $1 AND provider = 'nvidia'", [userId]);
@@ -243,7 +284,7 @@ export async function getApiKey(userId: string): Promise<string | null> {
 		[userId]
 	);
 	if (!row) return null;
-	return Buffer.from(row.api_key_encrypted, 'base64').toString('utf-8');
+	return decryptApiKey(row.api_key_encrypted);
 }
 
 export async function deleteApiKeys(userId: string): Promise<void> {
