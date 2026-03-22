@@ -177,7 +177,7 @@ export interface SandboxCommand {
 export interface AppSettings {
 	nvidiaApiKey: string;
 	defaultModel: string;
-	theme: 'dark' | 'light';
+	theme: 'dark' | 'light' | 'system';
 	github: {
 		connected: boolean;
 		username?: string;

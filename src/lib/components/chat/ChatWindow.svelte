@@ -15,7 +15,6 @@
 	$: isAgent = $activeConversation?.mode === 'agent';
 </script>
 
-<!-- Main chat layout with resizable agent panel -->
 <div class="flex h-full overflow-hidden">
 	<!-- Main Chat Area -->
 	<div class="flex-1 flex flex-col min-w-0">
@@ -23,9 +22,9 @@
 		<ChatInput on:send={handleSend} bind:this={chatInput} />
 	</div>
 
-	<!-- Agent Side Panel - slides in with transition -->
+	<!-- Agent Side Panel -->
 	{#if isAgent && showAgentPanel}
-		<div class="w-80 xl:w-96 border-l border-zinc-800 flex-shrink-0 overflow-hidden bg-zinc-900/50 transition-all duration-300">
+		<div class="w-80 xl:w-96 flex-shrink-0 overflow-hidden transition-all duration-300" style="border-left: 1px solid var(--border); background-color: var(--surface-secondary)">
 			<AgentStepsPanel steps={$agentSteps} />
 		</div>
 	{/if}

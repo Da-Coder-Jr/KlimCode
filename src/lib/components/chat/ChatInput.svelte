@@ -26,7 +26,6 @@
 		}
 	}
 
-	// Paste glow effect - inspired by chat-ui
 	function handlePaste() {
 		pasteGlow = true;
 		setTimeout(() => { pasteGlow = false; }, 600);
@@ -51,12 +50,13 @@
 	});
 </script>
 
-<div class="border-t border-zinc-800/60 bg-zinc-950/90 backdrop-blur-xl p-3 sm:p-4">
+<div class="flex-shrink-0 p-3 sm:p-4" style="border-top: 1px solid var(--border); background-color: var(--surface)">
 	<div class="max-w-3xl xl:max-w-4xl mx-auto">
 		<form on:submit|preventDefault={handleSubmit}>
 			<div
-				class="relative bg-zinc-900 border border-zinc-800 rounded-2xl focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-700 transition-all"
+				class="relative rounded-2xl transition-all"
 				class:paste-glow={pasteGlow}
+				style="background-color: var(--surface-secondary); border: 1px solid var(--border)"
 			>
 				<textarea
 					bind:this={textarea}
@@ -67,15 +67,15 @@
 					placeholder={$isStreaming ? 'AI is generating...' : 'Message KlimCode...'}
 					disabled={$isStreaming}
 					rows="1"
-					class="scrollbar-custom w-full bg-transparent text-zinc-100 placeholder-zinc-600 resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[4lh] sm:max-h-[8lh] disabled:opacity-40"
+					class="scrollbar-custom w-full bg-transparent resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[4lh] sm:max-h-[8lh] disabled:opacity-40"
+					style="color: var(--content)"
 				></textarea>
 
 				<div class="flex items-center justify-between px-3 pb-2.5">
 					<div class="flex items-center gap-2">
-						<!-- File upload button - inspired by chat-ui attachment dropdown -->
 						<button
 							type="button"
-							class="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-all"
+							class="p-1.5 rounded-lg transition-all btn-icon"
 							title="Attach file"
 							disabled={$isStreaming}
 						>
@@ -85,11 +85,11 @@
 						</button>
 
 						{#if $isStreaming}
-							<div class="flex items-center gap-2 text-zinc-500 text-xs">
+							<div class="flex items-center gap-2 text-xs" style="color: var(--content-muted)">
 								<div class="flex gap-1">
-									<span class="thinking-dot w-1 h-1 bg-blue-400 rounded-full"></span>
-									<span class="thinking-dot w-1 h-1 bg-blue-400 rounded-full"></span>
-									<span class="thinking-dot w-1 h-1 bg-blue-400 rounded-full"></span>
+									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
+									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
+									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
 								</div>
 								<span class="text-[11px]">Generating...</span>
 							</div>
@@ -98,11 +98,11 @@
 
 					<div class="flex items-center gap-1.5">
 						{#if $isStreaming}
-							<!-- Stop button with spinning ring animation - from chat-ui -->
 							<button
 								type="button"
 								on:click={handleStop}
-								class="stop-btn p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-all"
+								class="stop-btn p-2 rounded-xl transition-all"
+								style="background-color: var(--surface-tertiary); color: var(--content-tertiary)"
 								title="Stop generating"
 							>
 								<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -110,14 +110,13 @@
 								</svg>
 							</button>
 						{:else}
-							<!-- Send button - rounded like chat-ui -->
 							<button
 								type="submit"
 								disabled={!$inputMessage.trim()}
-								class="p-2 rounded-xl transition-all duration-150
-									{$inputMessage.trim()
-										? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-500/20'
-										: 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}"
+								class="p-2 rounded-xl transition-all duration-150"
+								style="{$inputMessage.trim()
+									? 'background-color: var(--content); color: var(--surface)'
+									: 'background-color: var(--surface-tertiary); color: var(--content-muted); cursor: not-allowed'}"
 								title="Send message (Enter)"
 							>
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,8 +130,8 @@
 		</form>
 
 		<div class="flex items-center justify-center mt-2">
-			<span class="text-[11px] text-zinc-700">
-				Free AI by <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="text-zinc-600 hover:text-zinc-500 transition-colors">NVIDIA NIM</a>
+			<span class="text-[11px]" style="color: var(--content-muted)">
+				Free AI by <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="transition-colors" style="color: var(--content-tertiary)">NVIDIA NIM</a>
 				&middot; Enter to send, Shift+Enter for new line
 			</span>
 		</div>

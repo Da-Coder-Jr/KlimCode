@@ -38,13 +38,11 @@
 <div class="w-full max-w-[400px] mx-auto px-4">
 	<!-- Logo & Title -->
 	<div class="text-center mb-8">
-		<div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/20">
-			<span class="text-white font-bold text-2xl">K</span>
-		</div>
-		<h1 class="text-2xl font-bold text-zinc-50 tracking-tight">
+		<img src="/favicon.svg" alt="KlimCode" class="w-16 h-16 mx-auto mb-5 rounded-2xl shadow-medium" />
+		<h1 class="text-2xl font-bold tracking-tight" style="color: var(--content)">
 			{mode === 'login' ? 'Welcome back' : 'Create your account'}
 		</h1>
-		<p class="text-zinc-500 text-sm mt-2">
+		<p class="text-sm mt-2" style="color: var(--content-muted)">
 			{mode === 'login' ? 'Sign in to continue to KlimCode' : 'Get started with AI-powered coding'}
 		</p>
 	</div>
@@ -63,10 +61,10 @@
 	<!-- Divider -->
 	<div class="relative mb-5">
 		<div class="absolute inset-0 flex items-center">
-			<div class="w-full border-t border-zinc-800"></div>
+			<div class="w-full" style="border-top: 1px solid var(--border)"></div>
 		</div>
 		<div class="relative flex justify-center text-xs">
-			<span class="px-3 bg-zinc-950 text-zinc-600">or continue with email</span>
+			<span class="px-3" style="background-color: var(--surface); color: var(--content-muted)">or continue with email</span>
 		</div>
 	</div>
 
@@ -74,7 +72,7 @@
 	<form on:submit|preventDefault={handleSubmit} class="space-y-3.5">
 		{#if mode === 'register'}
 			<div>
-				<label for="displayName" class="block text-[13px] font-medium text-zinc-400 mb-1.5">Display Name</label>
+				<label for="displayName" class="block text-[13px] font-medium mb-1.5" style="color: var(--content-tertiary)">Display Name</label>
 				<input
 					id="displayName"
 					bind:value={displayName}
@@ -86,7 +84,7 @@
 		{/if}
 
 		<div>
-			<label for="username" class="block text-[13px] font-medium text-zinc-400 mb-1.5">Username</label>
+			<label for="username" class="block text-[13px] font-medium mb-1.5" style="color: var(--content-tertiary)">Username</label>
 			<input
 				id="username"
 				bind:value={username}
@@ -99,7 +97,7 @@
 		</div>
 
 		<div>
-			<label for="password" class="block text-[13px] font-medium text-zinc-400 mb-1.5">Password</label>
+			<label for="password" class="block text-[13px] font-medium mb-1.5" style="color: var(--content-tertiary)">Password</label>
 			<input
 				id="password"
 				bind:value={password}
@@ -113,7 +111,7 @@
 		</div>
 
 		{#if $authError}
-			<div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
+			<div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-start gap-2">
 				<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
 				</svg>
@@ -140,16 +138,16 @@
 
 	<!-- Toggle Mode -->
 	<div class="mt-6 text-center">
-		<button on:click={toggleMode} class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+		<button on:click={toggleMode} class="text-sm transition-colors" style="color: var(--content-muted)">
 			{mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-			<span class="text-blue-400 hover:text-blue-300 font-medium">{mode === 'login' ? 'Sign up' : 'Sign in'}</span>
+			<span class="font-medium" style="color: var(--content)">{mode === 'login' ? 'Sign up' : 'Sign in'}</span>
 		</button>
 	</div>
 
 	<!-- Footer -->
 	<div class="mt-8 text-center">
-		<p class="text-xs text-zinc-700">
-			Powered by free AI models from <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="text-zinc-500 hover:text-zinc-400 transition-colors">NVIDIA NIM</a>
+		<p class="text-xs" style="color: var(--content-muted)">
+			Powered by free AI models from <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="transition-colors" style="color: var(--content-tertiary)">NVIDIA NIM</a>
 		</p>
 	</div>
 </div>

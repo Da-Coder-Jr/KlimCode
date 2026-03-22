@@ -9,24 +9,13 @@ Powered by [NVIDIA NIM](https://build.nvidia.com) (free AI models).
 - **Chat** — Ask coding questions, get help debugging, generate code
 - **Agent mode** — AI reads your GitHub repo, writes code, and creates pull requests for you
 - **GitHub integration** — Connect your GitHub, pick a repo, and the AI creates PRs you can merge
+- **Dark & Light mode** — Clean, polished UI with full theme support
 - **Free** — Uses NVIDIA's free AI API. No paid plans.
-
 
 ### Wait, what about the NVIDIA API key?
 
 Each user adds their own free NVIDIA API key in the Settings page after they log in.
 Get one at [build.nvidia.com](https://build.nvidia.com) — it's free, no credit card needed.
-
-## Run locally
-
-```bash
-git clone https://github.com/Da-Coder-Jr/KlimCode.git
-cd KlimCode
-npm install
-npm run klimcode
-```
-
-For local dev you'll need a Postgres database. Set `POSTGRES_URL` in a `.env` file.
 
 ## How the AI agent creates PRs
 
@@ -43,8 +32,29 @@ For local dev you'll need a Postgres database. Set `POSTGRES_URL` in a `.env` fi
 - **Backend**: SvelteKit API routes
 - **Database**: Vercel Postgres
 - **AI**: NVIDIA NIM API (free tier)
-- **Auth**: GitHub OAuth + password accounts
+- **Auth**: GitHub OAuth + password accounts (bcrypt-hashed)
 - **Hosting**: Vercel (free tier)
+
+## Security
+
+KlimCode is open source and takes security seriously:
+
+- **Password hashing**: All passwords are hashed with bcrypt (12 salt rounds)
+- **Session management**: HttpOnly, SameSite, Secure cookies with 30-day expiration
+- **XSS protection**: All user-generated HTML is sanitized with DOMPurify before rendering
+- **CSRF protection**: GitHub OAuth uses state parameter validation
+- **Input validation**: Strict username/password validation with constant-time comparison
+- **API keys**: Stored server-side only, never exposed to the client
+- **Environment variables**: All secrets stored in environment variables, never committed to code
+- **Content Security**: Markdown rendered through marked + highlight.js with sanitization
+
+### Reporting vulnerabilities
+
+If you find a security issue, please open an issue on GitHub or contact the maintainers directly.
+
+## Local development
+
+> **Note**: Local development support may be added in a future release. Currently, KlimCode is designed to run on Vercel.
 
 ## Credits
 

@@ -48,9 +48,9 @@
 	$: diffLines = parseDiff(diff);
 </script>
 
-<div class="rounded-lg border border-zinc-700 overflow-hidden">
+<div class="rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
 	{#if filename}
-		<div class="px-4 py-2 bg-zinc-800 border-b border-zinc-700 text-sm text-zinc-300 font-mono">
+		<div class="px-4 py-2 text-sm font-mono" style="background-color: var(--surface-tertiary); border-bottom: 1px solid var(--border); color: var(--content-secondary)">
 			{filename}
 		</div>
 	{/if}
@@ -60,28 +60,24 @@
 			<tbody>
 				{#each diffLines as line}
 					<tr class="
-						{line.type === 'added' ? 'bg-emerald-950/30' : ''}
-						{line.type === 'removed' ? 'bg-red-950/30' : ''}
-						{line.type === 'header' ? 'bg-blue-950/30' : ''}
+						{line.type === 'added' ? 'bg-emerald-500/5 dark:bg-emerald-950/30' : ''}
+						{line.type === 'removed' ? 'bg-red-500/5 dark:bg-red-950/30' : ''}
+						{line.type === 'header' ? 'bg-blue-500/5 dark:bg-blue-950/30' : ''}
 					">
-						<td class="select-none text-right px-2 py-0.5 text-zinc-600 w-12 border-r border-zinc-800">
+						<td class="select-none text-right px-2 py-0.5 w-12" style="color: var(--content-muted); border-right: 1px solid var(--border)">
 							{line.oldLineNumber || ''}
 						</td>
-						<td class="select-none text-right px-2 py-0.5 text-zinc-600 w-12 border-r border-zinc-800">
+						<td class="select-none text-right px-2 py-0.5 w-12" style="color: var(--content-muted); border-right: 1px solid var(--border)">
 							{line.newLineNumber || ''}
 						</td>
 						<td class="select-none px-2 py-0.5 w-4
-							{line.type === 'added' ? 'text-emerald-400' : ''}
-							{line.type === 'removed' ? 'text-red-400' : ''}
-							{line.type === 'header' ? 'text-blue-400' : 'text-zinc-600'}
-						">
+							{line.type === 'added' ? 'text-emerald-600 dark:text-emerald-400' : ''}
+							{line.type === 'removed' ? 'text-red-600 dark:text-red-400' : ''}
+							{line.type === 'header' ? 'text-blue-600 dark:text-blue-400' : ''}
+						" style="{line.type === 'context' ? 'color: var(--content-muted)' : ''}">
 							{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : line.type === 'header' ? '@' : ' '}
 						</td>
-						<td class="px-2 py-0.5 whitespace-pre
-							{line.type === 'added' ? 'text-emerald-200' : ''}
-							{line.type === 'removed' ? 'text-red-200' : ''}
-							{line.type === 'header' ? 'text-blue-300' : 'text-zinc-300'}
-						">
+						<td class="px-2 py-0.5 whitespace-pre" style="color: var(--content-secondary)">
 							{line.content}
 						</td>
 					</tr>
