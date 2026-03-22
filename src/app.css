@@ -6,42 +6,42 @@
 	/* ===== Light Mode CSS Variables ===== */
 	:root {
 		--surface: #ffffff;
-		--surface-secondary: #f8f9fa;
-		--surface-tertiary: #f1f3f5;
-		--surface-hover: #f1f3f5;
-		--surface-active: #e9ecef;
+		--surface-secondary: #f7f8fa;
+		--surface-tertiary: #eef0f4;
+		--surface-hover: #eef0f4;
+		--surface-active: #e4e7ec;
 
-		--border: #e5e7eb;
-		--border-secondary: #d1d5db;
+		--border: #e2e5ea;
+		--border-secondary: #cdd1d9;
 
-		--content: #111827;
-		--content-secondary: #374151;
-		--content-tertiary: #6b7280;
-		--content-muted: #9ca3af;
+		--content: #0f172a;
+		--content-secondary: #334155;
+		--content-tertiary: #64748b;
+		--content-muted: #94a3b8;
 
-		--accent: #111827;
-		--accent-hover: #1f2937;
-		--accent-muted: #374151;
-		--accent-subtle: #f3f4f6;
+		--accent: #0f172a;
+		--accent-hover: #1e293b;
+		--accent-muted: #334155;
+		--accent-subtle: #f1f5f9;
 
-		--code-bg: #f8f9fa;
-		--code-border: #e5e7eb;
-		--code-header: #f1f3f5;
-		--code-text: #1f2937;
+		--code-bg: #f8fafc;
+		--code-border: #e2e8f0;
+		--code-header: #f1f5f9;
+		--code-text: #1e293b;
 
 		--input-bg: #ffffff;
-		--input-border: #d1d5db;
+		--input-border: #cbd5e1;
 
-		--sidebar-bg: #f8f9fa;
-		--sidebar-border: #e5e7eb;
-		--sidebar-hover: #f1f3f5;
-		--sidebar-active: #e9ecef;
+		--sidebar-bg: #f8f9fb;
+		--sidebar-border: #e2e5ea;
+		--sidebar-hover: #eef0f4;
+		--sidebar-active: #e4e7ec;
 
-		--chat-bubble-bg: #f8f9fa;
-		--chat-bubble-border: #e5e7eb;
+		--chat-bubble-bg: #f7f8fa;
+		--chat-bubble-border: #e2e5ea;
 
 		--shadow-color: 0 0% 0%;
-		--selection-bg: rgba(17, 24, 39, 0.12);
+		--selection-bg: rgba(15, 23, 42, 0.1);
 	}
 
 	/* ===== Dark Mode CSS Variables ===== */
@@ -144,6 +144,11 @@
 	}
 	.btn-primary:hover:not(:disabled) {
 		opacity: 0.88;
+		transform: translateY(-0.5px);
+		box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15);
+	}
+	.btn-primary:active:not(:disabled) {
+		transform: translateY(0);
 	}
 	.btn-primary:focus-visible {
 		--tw-ring-color: var(--content-tertiary);
@@ -225,6 +230,8 @@
 	.card-hover:hover {
 		border-color: var(--border-secondary);
 		background-color: var(--surface-tertiary);
+		box-shadow: 0 2px 12px -3px rgba(0, 0, 0, 0.06);
+		transform: translateY(-1px);
 	}
 
 	/* ===== Badges ===== */

@@ -106,14 +106,14 @@
 				<!-- Desktop sidebar toggle - ALWAYS visible so sidebar can always be re-opened -->
 				<button
 					on:click={toggleNav}
-					class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
+					class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl transition-all duration-150 btn-icon"
 					title="{isNavCollapsed ? 'Open' : 'Close'} sidebar (Ctrl+Shift+O)"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						{#if isNavCollapsed}
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
 						{:else}
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 19l-7-7 7-7" />
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
 						{/if}
 					</svg>
 				</button>
