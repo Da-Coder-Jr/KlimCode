@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { activeConversationId, changeConversationModel, conversations } from '$stores/chat';
+	import { AVAILABLE_MODELS } from '$lib/models';
 
 	export let currentModel = 'meta/llama-3.3-70b-instruct';
 	export let open = false;
@@ -8,27 +10,32 @@
 
 	let searchQuery = '';
 
-	const models = [
-		{ id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', badge: 'Best', category: 'code', description: 'Best overall coding model' },
-		{ id: 'meta/llama-3.1-405b-instruct', name: 'Llama 3.1 405B', badge: 'Largest', category: 'reasoning', description: 'Most powerful reasoning' },
-		{ id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', badge: 'NVIDIA', category: 'reasoning', description: 'NVIDIA optimized model' },
-		{ id: 'deepseek-ai/deepseek-r1', name: 'DeepSeek R1', badge: 'Reasoning', category: 'reasoning', description: 'Chain-of-thought reasoning' },
-		{ id: 'qwen/qwen2.5-coder-32b-instruct', name: 'Qwen Coder 32B', badge: 'Code', category: 'code', description: 'Specialized code generation' },
-		{ id: 'microsoft/phi-4', name: 'Phi-4', badge: 'Fast', category: 'chat', description: 'Lightweight and fast' },
-		{ id: 'google/gemma-2-27b-it', name: 'Gemma 2 27B', badge: 'Chat', category: 'chat', description: 'Conversational AI' }
-	];
+	// Build models from the central models list
+	$: models = AVAILABLE_MODELS.map(m => ({
+		id: m.id,
+		name: m.name,
+		badge: m.category === 'code' ? 'Code' : m.category === 'reasoning' ? 'Reasoning' : 'Chat',
+		category: m.category,
+		description: m.description
+	}));
 
 	$: selectedModel = models.find(m => m.id === currentModel) || models[0];
 
 	$: filteredModels = searchQuery
-		? models.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.includes(searchQuery.toLowerCase()))
+		? models.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.includes(searchQuery.toLowerCase()) || m.description.toLowerCase().includes(searchQuery.toLowerCase()))
 		: models;
 
-	function select(id: string) {
+	async function select(id: string) {
 		currentModel = id;
 		open = false;
 		searchQuery = '';
 		dispatch('change', { model: id });
+
+		// Actually update the conversation model in the database
+		const convId = $activeConversationId;
+		if (convId) {
+			await changeConversationModel(convId, id);
+		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -60,11 +67,11 @@
 <div class="relative">
 	<button
 		on:click={() => open = !open}
-		class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all"
+		class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all hover:opacity-80"
 		style="background-color: var(--surface-tertiary); border: 1px solid var(--border)"
 	>
 		<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-		<span class="text-xs truncate max-w-[130px] font-medium" style="color: var(--content-tertiary)">{selectedModel.name}</span>
+		<span class="text-xs truncate max-w-[130px] font-medium" style="color: var(--content-tertiary)">{selectedModel?.name || 'Select Model'}</span>
 		<svg class="w-3 h-3 transition-transform" class:rotate-180={open} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 		</svg>
@@ -73,23 +80,28 @@
 	{#if open}
 		<button class="fixed inset-0 z-40" on:click={() => { open = false; searchQuery = ''; }} aria-label="Close"></button>
 
-		<div class="absolute top-full right-0 mt-1.5 w-80 rounded-xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+		<div class="absolute top-full right-0 mt-1.5 w-80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
 			<div class="px-3 py-2.5" style="border-bottom: 1px solid var(--border)">
-				<input
-					bind:value={searchQuery}
-					type="text"
-					placeholder="Search models..."
-					class="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none"
-					style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: none"
-					autofocus
-				/>
+				<div class="relative">
+					<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					</svg>
+					<input
+						bind:value={searchQuery}
+						type="text"
+						placeholder="Search models..."
+						class="w-full rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none"
+						style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: 1px solid transparent"
+						autofocus
+					/>
+				</div>
 			</div>
 
-			<div class="max-h-80 overflow-y-auto p-1.5">
+			<div class="max-h-[320px] overflow-y-auto p-1.5">
 				{#each filteredModels as model}
 					<button
 						on:click={() => select(model.id)}
-						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-100"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-100 hover:opacity-90"
 						style="{currentModel === model.id
 							? `background-color: var(--surface-active); color: var(--content)`
 							: `color: var(--content-tertiary)`}"

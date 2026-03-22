@@ -7,11 +7,22 @@
 	let textarea: HTMLTextAreaElement;
 	let fileInput: HTMLInputElement;
 	let pasteGlow = false;
-	let attachedFiles: { name: string; content: string; type: string }[] = [];
+	let attachedFiles: { name: string; content: string; type: string; preview?: string }[] = [];
 
 	function handleSubmit() {
-		if ($isStreaming || !$inputMessage.trim()) return;
-		dispatch('send', { message: $inputMessage, files: attachedFiles });
+		if ($isStreaming || (!$inputMessage.trim() && attachedFiles.length === 0)) return;
+
+		// Build final message with file contents appended
+		let finalMessage = $inputMessage;
+		for (const file of attachedFiles) {
+			if (file.type.startsWith('image/')) {
+				finalMessage += `\n\n[Attached image: ${file.name}]`;
+			} else {
+				finalMessage += `\n\n--- File: ${file.name} ---\n${file.content}\n--- End of ${file.name} ---`;
+			}
+		}
+
+		dispatch('send', { message: finalMessage, files: attachedFiles });
 		attachedFiles = [];
 	}
 
@@ -49,34 +60,43 @@
 		if (!files || files.length === 0) return;
 
 		for (const file of Array.from(files)) {
-			// Only handle text-based files for now
-			const maxSize = 500 * 1024; // 500KB limit
+			const maxSize = 5 * 1024 * 1024; // 5MB
 			if (file.size > maxSize) {
 				attachedFiles = [...attachedFiles, {
 					name: file.name,
-					content: `[File too large: ${(file.size / 1024).toFixed(1)}KB - max 500KB]`,
+					content: `[File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB - max 5MB]`,
 					type: file.type
 				}];
 				continue;
 			}
 
-			try {
-				const text = await file.text();
-				attachedFiles = [...attachedFiles, {
-					name: file.name,
-					content: text,
-					type: file.type || 'text/plain'
-				}];
-
-				// Prepend file contents to the message
-				const fileHeader = `\n\n--- File: ${file.name} ---\n${text}\n--- End of ${file.name} ---\n\n`;
-				inputMessage.update(msg => msg + fileHeader);
-			} catch {
-				attachedFiles = [...attachedFiles, {
-					name: file.name,
-					content: '[Could not read file]',
-					type: file.type
-				}];
+			if (file.type.startsWith('image/')) {
+				const preview = URL.createObjectURL(file);
+				const reader = new FileReader();
+				reader.onload = () => {
+					attachedFiles = [...attachedFiles, {
+						name: file.name,
+						content: reader.result as string,
+						type: file.type,
+						preview
+					}];
+				};
+				reader.readAsDataURL(file);
+			} else {
+				try {
+					const text = await file.text();
+					attachedFiles = [...attachedFiles, {
+						name: file.name,
+						content: text,
+						type: file.type || 'text/plain'
+					}];
+				} catch {
+					attachedFiles = [...attachedFiles, {
+						name: file.name,
+						content: '[Could not read file]',
+						type: file.type
+					}];
+				}
 			}
 		}
 
@@ -85,6 +105,8 @@
 	}
 
 	function removeFile(index: number) {
+		const file = attachedFiles[index];
+		if (file.preview) URL.revokeObjectURL(file.preview);
 		attachedFiles = attachedFiles.filter((_, i) => i !== index);
 	}
 
@@ -107,20 +129,36 @@
 		{#if attachedFiles.length > 0}
 			<div class="flex flex-wrap gap-2 mb-2">
 				{#each attachedFiles as file, i}
-					<div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
-						<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-						</svg>
-						<span class="truncate max-w-[120px]">{file.name}</span>
-						<button
-							on:click={() => removeFile(i)}
-							class="transition-colors" style="color: var(--content-muted)"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					{#if file.preview}
+						<!-- Image preview -->
+						<div class="relative group">
+							<img src={file.preview} alt={file.name} class="w-16 h-16 rounded-lg object-cover" style="border: 1px solid var(--border)" />
+							<button
+								on:click={() => removeFile(i)}
+								class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white bg-red-500 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+							>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+						</div>
+					{:else}
+						<!-- File preview -->
+						<div class="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
+							<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
 							</svg>
-						</button>
-					</div>
+							<span class="truncate max-w-[120px]">{file.name}</span>
+							<button
+								on:click={() => removeFile(i)}
+								class="transition-colors" style="color: var(--content-muted)"
+							>
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+						</div>
+					{/if}
 				{/each}
 			</div>
 		{/if}
@@ -149,7 +187,7 @@
 					bind:this={fileInput}
 					type="file"
 					multiple
-					accept=".txt,.md,.js,.ts,.py,.json,.csv,.html,.css,.jsx,.tsx,.go,.rs,.java,.c,.cpp,.h,.yml,.yaml,.toml,.xml,.sql,.sh,.bash,.env,.gitignore,.svelte,.vue,image/*"
+					accept=".txt,.md,.js,.ts,.py,.json,.csv,.html,.css,.jsx,.tsx,.go,.rs,.java,.c,.cpp,.h,.yml,.yaml,.toml,.xml,.sql,.sh,.bash,.svelte,.vue,image/*"
 					class="hidden"
 					on:change={handleFileChange}
 				/>
@@ -197,9 +235,9 @@
 						{:else}
 							<button
 								type="submit"
-								disabled={!$inputMessage.trim()}
+								disabled={!$inputMessage.trim() && attachedFiles.length === 0}
 								class="p-2 rounded-xl transition-all duration-150"
-								style="{$inputMessage.trim()
+								style="{$inputMessage.trim() || attachedFiles.length > 0
 									? 'background-color: var(--content); color: var(--surface)'
 									: 'background-color: var(--surface-tertiary); color: var(--content-muted); cursor: not-allowed'}"
 								title="Send message (Enter)"

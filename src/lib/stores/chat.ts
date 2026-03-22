@@ -101,6 +101,20 @@ export async function renameConversation(conversationId: string, title: string):
 	}
 }
 
+export async function changeConversationModel(conversationId: string, model: string): Promise<void> {
+	const res = await fetch(`/api/conversations/${conversationId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ model })
+	});
+
+	if (res.ok) {
+		conversations.update((convs) =>
+			convs.map((c) => (c.id === conversationId ? { ...c, model } : c))
+		);
+	}
+}
+
 // Edit a user message and resend - truncates conversation at that point
 export async function editAndResend(messageId: string, newContent: string): Promise<void> {
 	const currentMessages = get(messages);
@@ -139,6 +153,53 @@ export async function regenerateLastResponse(): Promise<void> {
 
 	// Resend the last user message
 	await sendMessage(lastUserContent);
+}
+
+async function generateTitle(convId: string, userMessage: string, aiResponse: string): Promise<void> {
+	// Create a concise title by summarizing the user's request
+	// Use simple heuristics to create a good title without an extra API call
+	let title = userMessage.trim();
+
+	// Remove file attachments text
+	title = title.replace(/\n\n---\s*File:.*?---\s*End of.*?---/gs, '');
+	title = title.replace(/\n\n\[Attached image:.*?\]/g, '');
+	title = title.trim();
+
+	// If message starts with common prefixes, clean them up
+	title = title.replace(/^(can you |please |help me |i need to |i want to |how do i |how to |what is |write a |create a |build a |fix |make |add )/i, (match) => {
+		// Capitalize first letter of the remaining content
+		return match.charAt(0).toUpperCase() + match.slice(1);
+	});
+
+	// Truncate smartly at sentence/phrase boundary
+	if (title.length > 50) {
+		// Try to break at a natural point
+		const breakPoints = ['. ', ', ', ' - ', ': ', '? '];
+		let bestBreak = 50;
+		for (const bp of breakPoints) {
+			const idx = title.indexOf(bp, 20);
+			if (idx > 0 && idx < 55) {
+				bestBreak = idx + (bp === '. ' || bp === '? ' ? 1 : 0);
+				break;
+			}
+		}
+		title = title.slice(0, bestBreak).trim();
+		if (title.length < userMessage.trim().length) {
+			title += '...';
+		}
+	}
+
+	// Capitalize first letter
+	if (title.length > 0) {
+		title = title.charAt(0).toUpperCase() + title.slice(1);
+	}
+
+	// Fallback if title is empty or too short
+	if (title.length < 3) {
+		title = 'Chat conversation';
+	}
+
+	await renameConversation(convId, title);
 }
 
 export async function sendMessage(content: string): Promise<void> {
@@ -254,12 +315,12 @@ export async function sendMessage(content: string): Promise<void> {
 			messages.update((msgs) => [...msgs, assistantMsg]);
 		}
 
-		// Auto-title the conversation from first message
+		// Auto-title the conversation using AI summary
 		const allConvs = get(conversations);
 		const currentConv = allConvs.find((c) => c.id === convId);
 		if (currentConv && currentConv.title === 'New Conversation' && content.length > 5) {
-			const title = content.slice(0, 60) + (content.length > 60 ? '...' : '');
-			renameConversation(convId, title);
+			// Generate a short title from the conversation
+			generateTitle(convId, content, fullContent);
 		}
 	} catch (err) {
 		if (err instanceof DOMException && err.name === 'AbortError') {
