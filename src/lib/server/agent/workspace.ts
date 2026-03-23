@@ -138,15 +138,20 @@ export class Workspace {
 		const data = await response.json();
 		const tree = data.tree || [];
 
+		const blobs = tree.filter((item: { path: string; type: string }) => item.type === 'blob');
+
+		// Handle catch-all patterns: return all files
+		if (!pattern || pattern === '*' || pattern === '**' || pattern === '**/*' || pattern === '.') {
+			return blobs.map((item: { path: string }) => item.path).slice(0, 200);
+		}
+
 		const regex = new RegExp(
-			pattern.replace(/\./g, '\\.').replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*'),
+			pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*'),
 			'i'
 		);
 
-		return tree
-			.filter((item: { path: string; type: string }) =>
-				item.type === 'blob' && regex.test(item.path)
-			)
+		return blobs
+			.filter((item: { path: string }) => regex.test(item.path))
 			.map((item: { path: string }) => item.path)
 			.slice(0, 100);
 	}

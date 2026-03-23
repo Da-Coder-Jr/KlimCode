@@ -37,7 +37,7 @@
 				{/if}
 			</div>
 
-			<div class="flex items-center gap-1.5">
+			<div class="flex items-center gap-1.5 flex-shrink-0">
 				{#if $activeConversation}
 					<ModelSelector
 						currentModel={$activeConversation.model}
