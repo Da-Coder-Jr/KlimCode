@@ -178,7 +178,7 @@
 					placeholder={$isStreaming ? 'AI is generating...' : 'Message KlimCode...'}
 					disabled={$isStreaming}
 					rows="1"
-					class="scrollbar-custom w-full bg-transparent resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[4lh] sm:max-h-[8lh] disabled:opacity-40"
+					class="scrollbar-custom w-full bg-transparent resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[200px] disabled:opacity-40"
 					style="color: var(--content)"
 				></textarea>
 

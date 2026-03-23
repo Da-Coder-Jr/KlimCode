@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { selectConversation, activeConversation } from '$stores/chat';
+	import { get } from 'svelte/store';
+	import { selectConversation, activeConversation, activeConversationId } from '$stores/chat';
 	import ChatWindow from '$components/chat/ChatWindow.svelte';
 	import Header from '$components/layout/Header.svelte';
 
@@ -9,7 +10,8 @@
 
 	onMount(async () => {
 		const id = $page.params.id;
-		if (id) {
+		// Skip if already the active conversation (prevents loadMessages race with auto-submit)
+		if (id && get(activeConversationId) !== id) {
 			await selectConversation(id);
 		}
 	});

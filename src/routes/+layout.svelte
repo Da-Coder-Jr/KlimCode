@@ -105,10 +105,8 @@
 	>
 		{#if showSidebar}
 			<!-- Desktop Sidebar -->
-			<nav class="hidden md:grid max-h-dvh grid-cols-1 grid-rows-[1fr] overflow-hidden">
-				<div class="w-[272px]">
-					<Sidebar onClose={toggleNav} />
-				</div>
+			<nav class="hidden md:block h-full overflow-hidden">
+				<Sidebar onClose={toggleNav} />
 			</nav>
 
 			<!-- Mobile Sidebar Overlay -->
@@ -129,22 +127,26 @@
 		<!-- Main content area -->
 		<main class="flex flex-col min-w-0 h-full overflow-hidden relative">
 			{#if showSidebar}
-				<!-- Desktop: Only show open button when sidebar is collapsed -->
-				{#if isNavCollapsed}
-					<button
-						on:click={toggleNav}
-						class="hidden md:flex absolute top-3 left-3 z-20 p-2 rounded-xl transition-all duration-150 btn-icon"
-						title="Open sidebar (Ctrl+Shift+O)"
-					>
+				<!-- Desktop: Always show sidebar toggle -->
+				<button
+					on:click={toggleNav}
+					class="hidden md:flex absolute top-3 left-3 z-40 p-2 rounded-xl transition-all duration-150 btn-icon"
+					title="{isNavCollapsed ? 'Open sidebar (Ctrl+Shift+O)' : 'Close sidebar (Ctrl+Shift+O)'}"
+				>
+					{#if isNavCollapsed}
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
 						</svg>
-					</button>
-				{/if}
+					{:else}
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+						</svg>
+					{/if}
+				</button>
 				<!-- Mobile toggle -->
 				<button
 					on:click={toggleMobileSidebar}
-					class="md:hidden absolute top-3 left-3 z-20 p-2 rounded-xl transition-all btn-icon"
+					class="md:hidden absolute top-3 left-3 z-40 p-2 rounded-xl transition-all btn-icon"
 					title="Open sidebar"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
