@@ -23,7 +23,7 @@
 	$: isAgent = $activeConversation?.mode === 'agent';
 </script>
 
-<div class="flex h-full overflow-hidden">
+<div class="flex h-full w-full overflow-hidden">
 	<!-- Main Chat Area -->
 	<div class="flex-1 flex flex-col min-w-0">
 		<MessageList messages={$messages} on:edit={handleEdit} on:regenerate={handleRegenerate} />

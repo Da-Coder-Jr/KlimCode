@@ -115,7 +115,7 @@
 			{#if mobileSidebarOpen}
 				<div class="fixed inset-0 z-50 md:hidden">
 					<button
-						class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+						class="absolute inset-0 bg-black/50 dark:bg-black/70"
 						on:click={closeMobileSidebar}
 						aria-label="Close sidebar"
 					></button>
@@ -177,7 +177,7 @@
 	<!-- API Key Required Prompt -->
 	{#if showApiKeyPrompt}
 		<div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-			<button class="absolute inset-0 bg-black/50 backdrop-blur-sm" on:click={() => showApiKeyPrompt = false} aria-label="Close"></button>
+			<button class="absolute inset-0 bg-black/60" on:click={() => showApiKeyPrompt = false} aria-label="Close"></button>
 			<div class="relative w-full max-w-md rounded-2xl p-6 shadow-elevated animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
 				<div class="text-center mb-5">
 					<div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
