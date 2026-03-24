@@ -3,10 +3,11 @@ import {
 	streamNvidiaResponse,
 	callNvidiaNonStreaming,
 	buildSystemPrompt,
-	getAgentTools
+	getAgentTools,
+	getModelById
 } from '$server/ai/nvidia';
 import { executeToolCall, type ToolExecutionContext } from './tools';
-import { createWorkspace, getWorkspace, type Workspace } from './workspace';
+import { createWorkspace, getWorkspace, destroyWorkspace, type Workspace } from './workspace';
 
 const MAX_TOOL_ROUNDS = 15;
 
@@ -30,6 +31,18 @@ export async function* executeAgent(
 		repoOwner, repoName, githubToken, baseBranch,
 		onStep
 	} = options;
+
+	// Validate that the selected model supports tool calling
+	const modelInfo = getModelById(model);
+	if (modelInfo && !modelInfo.supportsTools) {
+		yield {
+			type: 'text',
+			content: `**Note:** ${modelInfo.name} doesn't support tool calling, so Agent mode tools (file editing, PR creation, etc.) won't work. Switching to chat-style response. For full Agent capabilities, use a model that supports tools like Qwen 2.5 Coder or DeepSeek V3.1 Terminus.`
+		};
+		// Fall back to chat mode for non-tool models
+		yield* executeChat({ apiKey, model, messages });
+		return;
+	}
 
 	// Get or create workspace
 	let workspace: Workspace | undefined;

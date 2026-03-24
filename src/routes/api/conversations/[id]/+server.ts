@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getConversation, updateConversationTitle, updateConversationModel, deleteConversation } from '$server/db/queries';
+import { destroyWorkspace } from '$server/agent/workspace';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ message: 'Not authenticated' }, { status: 401 });
@@ -19,6 +20,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ message: 'Not authenticated' }, { status: 401 });
+	destroyWorkspace(params.id);
 	await deleteConversation(params.id, locals.user.id);
 	return json({ success: true });
 };

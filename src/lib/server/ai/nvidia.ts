@@ -211,26 +211,26 @@ export function buildSystemPrompt(mode: 'chat' | 'agent', context?: { repo?: str
 Be concise, accurate, and practical. Format responses with markdown. When writing code, use best practices and modern patterns. Always explain what your code does and why.`;
 	}
 
-	return `You are KlimCode Agent, an autonomous AI coding assistant with access to a GitHub repository. You have exactly 5 tools available:
+	return `You are KlimCode Agent, an autonomous AI coding assistant with access to a GitHub repository. You have 6 tools available.
 
-## Available Tools (use ONLY these)
-- **read_file(path)**: Read a file's contents. Always read files before editing them.
-- **write_file(path, content)**: Create or fully overwrite a file.
-- **edit_file(path, old_text, new_text)**: Replace specific text in a file. The old_text must match exactly.
-- **search_files(pattern, search_type, directory?)**: Search files. Use search_type="filename" to find files by name pattern, or search_type="content" to search file contents. For listing all files use search_type="filename" with pattern="." — do NOT use "*" as a pattern.
-- **list_files(directory?)**: List all files in a directory. Use list_files("") to list all repository files, or list_files("src") for a subdirectory.
-- **create_pr(title, body, branch)**: Create a GitHub PR with your changes.
+## Available Tools (use ONLY these — nothing else exists)
+1. **read_file(path)** — Read a file's contents. Always read before editing.
+2. **write_file(path, content)** — Create or fully overwrite a file.
+3. **edit_file(path, old_text, new_text)** — Replace specific text in a file. The old_text must match exactly (including whitespace).
+4. **search_files(pattern, search_type)** — Search by filename (glob pattern) or file contents (text query). Use search_type="filename" or search_type="content".
+5. **list_files(directory)** — List all files in a directory. Use list_files("") to see the entire repo, or list_files("src") for a subdirectory.
+6. **create_pr(title, body, branch)** — Create a GitHub PR with all your changes.
 
-## IMPORTANT Rules
-1. ONLY call tools that are listed above. Do NOT call run_command or any other tool — it will fail.
-2. To explore the repo, call list_files("") first to see all files.
-3. Always read_file before edit_file — you need the exact text to replace.
-4. When edit_file fails, use write_file to rewrite the whole file instead.
-5. Make minimal targeted changes. Don't rewrite files unless necessary.
-6. After making changes, summarize what you did clearly.
+## Rules
+1. ONLY call the 6 tools listed above. Do NOT invent tools like run_command — they don't exist and will fail.
+2. Start by calling list_files("") to understand the repo structure.
+3. Always read_file before edit_file so you have the exact text to match.
+4. If edit_file fails (text not found), re-read the file and try again with the correct text, or use write_file to rewrite the entire file.
+5. Make minimal, targeted changes. Prefer edit_file over write_file when possible.
+6. After completing changes, summarize exactly what you modified and why.
 ${context?.repo ? `\n## Repository\n- Repo: ${context.repo}\n- Branch: ${context.branch || 'main'}` : '\n## Note\nNo GitHub repository connected. You can only analyze and discuss code — file operations require a connected repo.'}
 
-Think step by step. Use tools one at a time. Explain your reasoning before each tool call.`;
+Think step by step. Explain your reasoning before each tool call.`;
 }
 
 export function getAgentTools(): NvidiaTool[] {
@@ -239,13 +239,13 @@ export function getAgentTools(): NvidiaTool[] {
 			type: 'function',
 			function: {
 				name: 'read_file',
-				description: 'Read the contents of a file at the given path',
+				description: 'Read the contents of a file at the given path. Always read a file before editing it.',
 				parameters: {
 					type: 'object',
 					properties: {
 						path: {
 							type: 'string',
-							description: 'The file path relative to the workspace root'
+							description: 'The file path relative to the repository root'
 						}
 					},
 					required: ['path']
@@ -256,13 +256,13 @@ export function getAgentTools(): NvidiaTool[] {
 			type: 'function',
 			function: {
 				name: 'write_file',
-				description: 'Write content to a file, creating it if it does not exist or overwriting if it does',
+				description: 'Write content to a file, creating it if it does not exist or fully overwriting if it does',
 				parameters: {
 					type: 'object',
 					properties: {
 						path: {
 							type: 'string',
-							description: 'The file path relative to the workspace root'
+							description: 'The file path relative to the repository root'
 						},
 						content: {
 							type: 'string',
@@ -277,17 +277,17 @@ export function getAgentTools(): NvidiaTool[] {
 			type: 'function',
 			function: {
 				name: 'edit_file',
-				description: 'Make a targeted edit to an existing file by replacing specific text',
+				description: 'Make a targeted edit to an existing file by replacing specific text. The old_text must match exactly (including whitespace and indentation).',
 				parameters: {
 					type: 'object',
 					properties: {
 						path: {
 							type: 'string',
-							description: 'The file path relative to the workspace root'
+							description: 'The file path relative to the repository root'
 						},
 						old_text: {
 							type: 'string',
-							description: 'The exact text to find and replace'
+							description: 'The exact text to find and replace (must be unique in the file)'
 						},
 						new_text: {
 							type: 'string',
@@ -302,13 +302,13 @@ export function getAgentTools(): NvidiaTool[] {
 			type: 'function',
 			function: {
 				name: 'search_files',
-				description: 'Search for files by name pattern or search file contents with a regex pattern',
+				description: 'Search for files by name pattern (glob) or search file contents with a text query',
 				parameters: {
 					type: 'object',
 					properties: {
 						pattern: {
 							type: 'string',
-							description: 'The search pattern (glob for file names, regex for content)'
+							description: 'The search pattern — glob for filenames (e.g. "*.ts", "src/**/*.js") or text query for content search'
 						},
 						search_type: {
 							type: 'string',
@@ -317,7 +317,7 @@ export function getAgentTools(): NvidiaTool[] {
 						},
 						directory: {
 							type: 'string',
-							description: 'Directory to search in (relative to workspace root)'
+							description: 'Optional directory to narrow the search'
 						}
 					},
 					required: ['pattern', 'search_type']
@@ -327,26 +327,39 @@ export function getAgentTools(): NvidiaTool[] {
 		{
 			type: 'function',
 			function: {
+				name: 'list_files',
+				description: 'List all files in a directory. Use an empty string to list all files in the repository root.',
+				parameters: {
+					type: 'object',
+					properties: {
+						directory: {
+							type: 'string',
+							description: 'The directory path relative to the repository root. Use "" for the entire repo.'
+						}
+					},
+					required: []
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
 				name: 'create_pr',
-				description: 'Create a GitHub pull request with the changes made in the sandbox',
+				description: 'Create a GitHub pull request with all the file changes made so far',
 				parameters: {
 					type: 'object',
 					properties: {
 						title: {
 							type: 'string',
-							description: 'The PR title'
+							description: 'The PR title (concise summary of changes)'
 						},
 						body: {
 							type: 'string',
-							description: 'The PR description in markdown'
+							description: 'The PR description in markdown format'
 						},
 						branch: {
 							type: 'string',
-							description: 'The branch name for the PR'
-						},
-						base_branch: {
-							type: 'string',
-							description: 'The target branch to merge into (defaults to main)'
+							description: 'The branch name for the PR (e.g. "fix/login-bug")'
 						}
 					},
 					required: ['title', 'body', 'branch']
