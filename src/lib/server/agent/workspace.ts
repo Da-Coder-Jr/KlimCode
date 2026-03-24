@@ -1,4 +1,5 @@
 import type { AgentStep } from '$types/core';
+import { createTwoFilesPatch } from 'diff';
 
 /**
  * Serverless workspace — stores file changes in memory and commits
@@ -183,35 +184,25 @@ export class Workspace {
 	}
 
 	getDiff(): string {
-		const lines: string[] = [];
+		const patches: string[] = [];
 
 		for (const file of this.files.values()) {
-			lines.push(`--- a/${file.path}`);
-			lines.push(`+++ b/${file.path}`);
+			const oldContent = file.status === 'added' ? '' : (file.originalContent || '');
+			const newContent = file.status === 'deleted' ? '' : file.content;
 
-			if (file.status === 'added') {
-				for (const line of file.content.split('\n')) {
-					lines.push(`+${line}`);
-				}
-			} else if (file.status === 'deleted') {
-				for (const line of (file.originalContent || '').split('\n')) {
-					lines.push(`-${line}`);
-				}
-			} else {
-				// Simple diff for modified files
-				const oldLines = (file.originalContent || '').split('\n');
-				const newLines = file.content.split('\n');
-				for (const line of oldLines) {
-					if (!newLines.includes(line)) lines.push(`-${line}`);
-				}
-				for (const line of newLines) {
-					if (!oldLines.includes(line)) lines.push(`+${line}`);
-				}
-			}
-			lines.push('');
+			const patch = createTwoFilesPatch(
+				`a/${file.path}`,
+				`b/${file.path}`,
+				oldContent,
+				newContent,
+				'',
+				'',
+				{ context: 3 }
+			);
+			patches.push(patch);
 		}
 
-		return lines.join('\n');
+		return patches.join('\n');
 	}
 
 	async createPullRequest(

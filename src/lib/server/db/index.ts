@@ -72,7 +72,7 @@ export async function initializeDatabase(): Promise<void> {
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			title TEXT NOT NULL DEFAULT 'New Conversation',
-			model TEXT NOT NULL DEFAULT 'meta/llama-3.3-70b-instruct',
+			model TEXT NOT NULL DEFAULT 'qwen/qwen2.5-coder-32b-instruct',
 			mode TEXT NOT NULL DEFAULT 'chat',
 			github_repo TEXT,
 			github_branch TEXT,
