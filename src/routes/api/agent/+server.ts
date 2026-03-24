@@ -16,10 +16,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const conversation = await getConversation(conversationId, locals.user.id);
 	if (!conversation) return json({ message: 'Conversation not found' }, { status: 404 });
 
-	const apiKey = await getApiKey(locals.user.id);
-	if (!apiKey) {
+	const apiKeyResult = await getApiKey(locals.user.id);
+	if (!apiKeyResult) {
 		return json({ message: 'No NVIDIA API key configured. Add one in Settings.' }, { status: 400 });
 	}
+
+	const resolvedApiKey: string = apiKeyResult;
+	const resolvedModel: string = model || conversation.model;
 
 	await createMessage(conversationId, 'user', message);
 	const history = await getMessages(conversationId);
@@ -29,29 +32,29 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	async function* wrappedGenerator(): AsyncGenerator<StreamChunk> {
 		const generator = executeAgent({
-			apiKey,
-			model: model || conversation.model,
+			apiKey: resolvedApiKey,
+			model: resolvedModel,
 			conversationId,
 			messages: history,
 			repoOwner,
 			repoName,
 			githubToken: locals.user?.githubToken,
-			baseBranch,
-			onStep: (step) => {
-				const idx = agentSteps.findIndex((s) => s.id === step.id);
-				if (idx >= 0) agentSteps[idx] = step;
-				else agentSteps.push(step);
-			}
+			baseBranch
 		});
 
 		for await (const chunk of generator) {
 			if (chunk.type === 'text' && chunk.content) fullContent += chunk.content;
+			if (chunk.type === 'agent_step' && chunk.agentStep) {
+				const idx = agentSteps.findIndex((s) => s.id === chunk.agentStep!.id);
+				if (idx >= 0) agentSteps[idx] = chunk.agentStep;
+				else agentSteps.push(chunk.agentStep);
+			}
 			yield chunk;
 		}
 
 		if (fullContent) {
 			await createMessage(conversationId, 'assistant', fullContent, {
-				model: model || conversation.model,
+				model: resolvedModel,
 				metadata: { agentSteps }
 			});
 		}

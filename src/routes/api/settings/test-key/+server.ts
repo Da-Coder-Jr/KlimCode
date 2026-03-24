@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const result = await callNvidiaNonStreaming({
 			apiKey,
-			model: 'meta/llama-3.3-70b-instruct',
+			model: 'qwen/qwen2.5-coder-32b-instruct',
 			messages: [{ role: 'user', content: 'Say "API key verified" and nothing else.' }],
 			maxTokens: 20
 		});

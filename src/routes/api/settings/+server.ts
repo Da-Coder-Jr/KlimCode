@@ -8,10 +8,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	return json({
 		nvidiaApiKey: apiKey ? '••••••••' + apiKey.slice(-4) : '',
-		defaultModel: 'meta/llama-3.3-70b-instruct',
+		defaultModel: 'qwen/qwen2.5-coder-32b-instruct',
 		github: {
 			connected: !!locals.user.githubId,
-			username: locals.user.githubId ? locals.user.username : undefined
+			username: locals.user.githubUsername || (locals.user.githubId ? locals.user.username : undefined)
 		}
 	});
 };
