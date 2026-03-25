@@ -16,10 +16,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const conversation = await getConversation(conversationId, locals.user.id);
 	if (!conversation) return json({ message: 'Conversation not found' }, { status: 404 });
 
-	const apiKey = await getApiKey(locals.user.id);
-	if (!apiKey) {
+	const apiKeyResult = await getApiKey(locals.user.id);
+	if (!apiKeyResult) {
 		return json({ message: 'No NVIDIA API key configured. Add one in Settings.' }, { status: 400 });
 	}
+
+	const resolvedApiKey: string = apiKeyResult;
+	const resolvedModel: string = model || conversation.model;
 
 	await createMessage(conversationId, 'user', message);
 	const history = await getMessages(conversationId);
@@ -28,7 +31,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	let totalTokens = { prompt: 0, completion: 0 };
 
 	async function* wrappedGenerator(): AsyncGenerator<StreamChunk> {
-		const generator = executeChat({ apiKey, model: model || conversation.model, messages: history });
+		const generator = executeChat({ apiKey: resolvedApiKey, model: resolvedModel, messages: history });
 		for await (const chunk of generator) {
 			if (chunk.type === 'text' && chunk.content) fullContent += chunk.content;
 			if (chunk.type === 'done' && chunk.usage) {
@@ -39,7 +42,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		if (fullContent) {
 			await createMessage(conversationId, 'assistant', fullContent, {
-				model: model || conversation.model,
+				model: resolvedModel,
 				tokensPrompt: totalTokens.prompt,
 				tokensCompletion: totalTokens.completion
 			});

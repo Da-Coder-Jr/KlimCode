@@ -53,6 +53,7 @@ export interface MessageMetadata {
 	commandsRun?: string[];
 	prDrafted?: PRDraft;
 	agentSteps?: AgentStep[];
+	toolCallId?: string;
 	error?: string;
 }
 

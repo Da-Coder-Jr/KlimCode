@@ -37,8 +37,16 @@ renderer.link = function ({ href, text }: { href: string; text: string }) {
 	return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 };
 
-renderer.table = function ({ header, body }: { header: string; body: string }) {
-	return `<div class="table-wrapper"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+renderer.table = function ({ header, rows }: { header: Array<{ text: string; align: string | null }>; rows: Array<Array<{ text: string; align: string | null }>> }) {
+	const headerHtml = header.map((cell) =>
+		`<th${cell.align ? ` style="text-align:${cell.align}"` : ''}>${cell.text}</th>`
+	).join('');
+	const bodyHtml = rows.map((row) =>
+		`<tr>${row.map((cell) =>
+			`<td${cell.align ? ` style="text-align:${cell.align}"` : ''}>${cell.text}</td>`
+		).join('')}</tr>`
+	).join('');
+	return `<div class="table-wrapper"><table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
 };
 
 // Enhanced image rendering with lightbox-ready styling
