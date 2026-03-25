@@ -3,7 +3,7 @@ import type { AppSettings } from '$types/core';
 
 const DEFAULT_SETTINGS: AppSettings = {
 	nvidiaApiKey: '',
-	defaultModel: 'qwen/qwen3-coder-480b-a35b-instruct',
+	defaultModel: 'qwen/qwen2.5-coder-32b-instruct',
 	theme: 'system',
 	github: {
 		connected: false

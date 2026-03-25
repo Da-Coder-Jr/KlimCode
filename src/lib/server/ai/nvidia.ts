@@ -181,22 +181,9 @@ export async function callNvidiaNonStreaming(
 	const data = await response.json();
 	const choice = data.choices?.[0];
 
-	let content: string = choice?.message?.content || '';
-	let toolCalls: ToolCall[] | undefined = choice?.message?.tool_calls;
-
-	// Some models output tool calls as raw text (e.g. DeepSeek DSML format, XML format).
-	// Parse and strip them if the API didn't return structured tool_calls.
-	if ((!toolCalls || toolCalls.length === 0) && content) {
-		const parsed = parseTextToolCalls(content);
-		if (parsed.toolCalls.length > 0) {
-			content = parsed.cleanText;
-			toolCalls = parsed.toolCalls;
-		}
-	}
-
 	return {
-		content,
-		toolCalls,
+		content: choice?.message?.content || '',
+		toolCalls: choice?.message?.tool_calls,
 		usage: data.usage
 			? {
 					promptTokens: data.usage.prompt_tokens,
@@ -204,81 +191,6 @@ export async function callNvidiaNonStreaming(
 				}
 			: undefined
 	};
-}
-
-/**
- * Parse tool calls embedded as raw text in a model response.
- * Handles DeepSeek DSML format and generic XML function_calls format.
- */
-function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
-	const toolCalls: ToolCall[] = [];
-	let cleanText = text;
-
-	// DeepSeek uses U+FF5C (｜) as a delimiter: <｜DSML｜function_calls>
-	const PIPE = '\uFF5C';
-	const dsmlFcOpen = `<${PIPE}DSML${PIPE}function_calls>`;
-	const dsmlFcClose = `</${PIPE}DSML${PIPE}function_calls>`;
-
-	let startIdx = cleanText.indexOf(dsmlFcOpen);
-	let endIdx = cleanText.indexOf(dsmlFcClose);
-
-	if (startIdx !== -1 && endIdx !== -1) {
-		const block = cleanText.slice(startIdx + dsmlFcOpen.length, endIdx);
-		// Parse each <｜DSML｜invoke name="...">...</｜DSML｜invoke>
-		const invokeRe = new RegExp(
-			`<${PIPE}DSML${PIPE}invoke name="([^"]+)">((?:.|\\n)*?)<\\/${PIPE}DSML${PIPE}invoke>`,
-			'g'
-		);
-		let m: RegExpExecArray | null;
-		while ((m = invokeRe.exec(block)) !== null) {
-			const toolName = m[1];
-			const invokeBody = m[2];
-			const args: Record<string, string> = {};
-			const paramRe = new RegExp(
-				`<${PIPE}DSML${PIPE}parameter name="([^"]+)"[^>]*>((?:.|\\n)*?)<\\/${PIPE}DSML${PIPE}parameter>`,
-				'g'
-			);
-			let p: RegExpExecArray | null;
-			while ((p = paramRe.exec(invokeBody)) !== null) {
-				args[p[1]] = p[2].trim();
-			}
-			toolCalls.push({
-				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-				type: 'function',
-				function: { name: toolName, arguments: JSON.stringify(args) }
-			});
-		}
-		cleanText = (cleanText.slice(0, startIdx) + cleanText.slice(endIdx + dsmlFcClose.length)).trim();
-	}
-
-	// Generic XML format: <function_calls><invoke name="..."><parameter name="...">val</parameter></invoke></function_calls>
-	if (toolCalls.length === 0) {
-		startIdx = cleanText.indexOf('<function_calls>');
-		endIdx = cleanText.indexOf('</function_calls>');
-		if (startIdx !== -1 && endIdx !== -1) {
-			const block = cleanText.slice(startIdx + '<function_calls>'.length, endIdx);
-			const invokeRe = /<invoke name="([^"]+)">([\s\S]*?)<\/invoke>/g;
-			let m: RegExpExecArray | null;
-			while ((m = invokeRe.exec(block)) !== null) {
-				const toolName = m[1];
-				const invokeBody = m[2];
-				const args: Record<string, string> = {};
-				const paramRe = /<parameter name="([^"]+)"[^>]*>([\s\S]*?)<\/parameter>/g;
-				let p: RegExpExecArray | null;
-				while ((p = paramRe.exec(invokeBody)) !== null) {
-					args[p[1]] = p[2].trim();
-				}
-				toolCalls.push({
-					id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-					type: 'function',
-					function: { name: toolName, arguments: JSON.stringify(args) }
-				});
-			}
-			cleanText = (cleanText.slice(0, startIdx) + cleanText.slice(endIdx + '</function_calls>'.length)).trim();
-		}
-	}
-
-	return { cleanText, toolCalls };
 }
 
 export class NvidiaAPIError extends Error {

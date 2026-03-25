@@ -25,19 +25,16 @@
 	async function handleNewChat() {
 		showNewMenu = false;
 		const id = await createConversation('chat', $settings.defaultModel);
-		onClose();
 		goto(`/chat/${id}`);
 	}
 
 	async function handleNewAgent() {
 		showNewMenu = false;
 		const id = await createConversation('agent', $settings.defaultModel);
-		onClose();
 		goto(`/chat/${id}`);
 	}
 
 	async function handleSelect(id: string) {
-		onClose();
 		await selectConversation(id);
 		goto(`/chat/${id}`);
 	}
@@ -124,11 +121,20 @@
 
 <aside class="flex flex-col h-full w-full" style="background-color: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border)">
 	<!-- Header -->
-	<div class="flex items-center px-3.5 py-3.5">
+	<div class="flex items-center justify-between px-3.5 py-3.5">
 		<a href="/" class="flex items-center gap-2.5 group hover:opacity-80 transition-opacity">
 			<img src="/favicon.svg" alt="KlimCode" class="w-7 h-7 rounded-lg shadow-soft" />
 			<span class="font-semibold text-[15px] tracking-tight" style="color: var(--content)">KlimCode</span>
 		</a>
+		<button
+			on:click={onClose}
+			class="p-1.5 rounded-lg transition-all duration-150 btn-icon"
+			title="Close sidebar (Ctrl+Shift+O)"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+			</svg>
+		</button>
 	</div>
 
 	<!-- New Conversation -->
