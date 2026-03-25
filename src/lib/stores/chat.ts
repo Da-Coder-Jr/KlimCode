@@ -103,17 +103,16 @@ export async function renameConversation(conversationId: string, title: string):
 }
 
 export async function changeConversationModel(conversationId: string, model: string): Promise<void> {
-	const res = await fetch(`/api/conversations/${conversationId}`, {
+	// Optimistic update so the UI reflects the change immediately
+	conversations.update((convs) =>
+		convs.map((c) => (c.id === conversationId ? { ...c, model } : c))
+	);
+
+	await fetch(`/api/conversations/${conversationId}`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ model })
 	});
-
-	if (res.ok) {
-		conversations.update((convs) =>
-			convs.map((c) => (c.id === conversationId ? { ...c, model } : c))
-		);
-	}
 }
 
 // Edit a user message and resend - truncates conversation at that point

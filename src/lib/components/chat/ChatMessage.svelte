@@ -139,7 +139,8 @@
 						{@html renderedContent}
 					</div>
 
-					{#if isStreaming && !message.content}
+					<!-- Thinking dots: only when no text yet -->
+					{#if isStreaming && !message.content && liveAgentSteps.length === 0}
 						<span class="inline-flex gap-1 ml-1 align-text-bottom">
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
@@ -149,7 +150,7 @@
 
 					<!-- Inline tool steps (live during streaming) -->
 					{#if liveAgentSteps.length > 0}
-						<div class="mt-3 pt-3 space-y-0.5" style="border-top: 1px solid var(--chat-bubble-border)">
+						<div class="mt-2 space-y-0">
 							{#each liveAgentSteps as step (step.id)}
 								<InlineToolStep {step} />
 							{/each}
@@ -158,7 +159,7 @@
 
 					<!-- Inline tool steps (from saved message metadata) -->
 					{#if !isStreaming && message.metadata?.agentSteps && message.metadata.agentSteps.length > 0}
-						<div class="mt-3 pt-3 space-y-0.5" style="border-top: 1px solid var(--chat-bubble-border)">
+						<div class="mt-2 space-y-0">
 							{#each message.metadata.agentSteps as step (step.id)}
 								<InlineToolStep {step} />
 							{/each}
@@ -198,7 +199,6 @@
 						</button>
 					{/if}
 
-					<!-- Retry/Regenerate button (for assistant messages) - inspired by chat-ui -->
 					{#if isAssistant}
 						<button
 							on:click={handleRegenerate}

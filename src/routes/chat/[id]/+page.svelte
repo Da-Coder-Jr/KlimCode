@@ -6,11 +6,8 @@
 	import ChatWindow from '$components/chat/ChatWindow.svelte';
 	import Header from '$components/layout/Header.svelte';
 
-	let showAgentPanel = false;
-
 	onMount(async () => {
 		const id = $page.params.id;
-		// Skip if already the active conversation (prevents loadMessages race with auto-submit)
 		if (id && get(activeConversationId) !== id) {
 			await selectConversation(id);
 		}
@@ -26,14 +23,11 @@
 </svelte:head>
 
 <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
-	<Header
-		onToggleAgent={() => showAgentPanel = !showAgentPanel}
-		{showAgentPanel}
-	/>
+	<Header />
 
 	{#if $activeConversation}
 		<div class="flex-1 min-h-0 overflow-hidden">
-			<ChatWindow {showAgentPanel} />
+			<ChatWindow />
 		</div>
 	{:else}
 		<div class="flex-1 flex items-center justify-center">

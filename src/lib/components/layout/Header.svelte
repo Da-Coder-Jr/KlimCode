@@ -5,8 +5,6 @@
 	import ModelSelector from '$components/chat/ModelSelector.svelte';
 
 	export let onToggleSidebar: () => void = () => {};
-	export let onToggleAgent: () => void = () => {};
-	export let showAgentPanel = false;
 
 	let modelSelectorOpen = false;
 	let repoSelectorOpen = false;
@@ -142,19 +140,6 @@
 							Connect GitHub
 						</a>
 					{/if}
-
-					<button
-						on:click={onToggleAgent}
-						class="p-2 rounded-lg transition-all duration-150"
-						class:bg-emerald-500={showAgentPanel}
-						class:text-white={showAgentPanel}
-						style="{!showAgentPanel ? 'color: var(--content-muted)' : ''}"
-						title="Toggle Agent Panel"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-						</svg>
-					</button>
 				{/if}
 			</div>
 		</div>

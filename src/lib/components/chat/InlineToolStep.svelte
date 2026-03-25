@@ -18,97 +18,66 @@
 		return icons[type] || icons.think;
 	}
 
-	function getRunningText(type: string, description: string): string {
-		// Use the server description if it's specific (e.g. "Reading index.ts")
-		if (description && !description.startsWith('Executing:') && !description.startsWith('Running ')) {
-			return description + '...';
+	function getStatusText(step: AgentStep): string {
+		const desc = step.description;
+		const isGeneric = !desc || desc.startsWith('Executing:') || desc.startsWith('Running ');
+
+		if (step.status === 'running') {
+			if (!isGeneric) return desc + '...';
+			const t: Record<string, string> = {
+				think: 'Thinking...', read_file: 'Reading file...', write_file: 'Writing file...',
+				edit_file: 'Editing file...', run_command: 'Running command...', search_files: 'Searching files...',
+				create_pr: 'Creating pull request...', browse_repo: 'Browsing repository...'
+			};
+			return t[step.type] || 'Working...';
 		}
-		const texts: Record<string, string> = {
-			think: 'Thinking...',
-			read_file: 'Reading file...',
-			write_file: 'Writing file...',
-			edit_file: 'Editing file...',
-			run_command: 'Running command...',
-			search_files: 'Searching files...',
-			create_pr: 'Creating pull request...',
-			browse_repo: 'Browsing repository...'
-		};
-		return texts[type] || description || 'Working...';
+
+		if (step.status === 'completed') {
+			if (!isGeneric) {
+				if (desc.startsWith('Reading ')) return desc.replace('Reading ', 'Read ') + '.';
+				if (desc.startsWith('Writing ')) return desc.replace('Writing ', 'Wrote ') + '.';
+				if (desc.startsWith('Editing ')) return desc.replace('Editing ', 'Edited ') + '.';
+				if (desc.startsWith('Searching')) return 'Search complete.';
+				if (desc.startsWith('Listing ')) return desc.replace('Listing ', 'Listed ') + '.';
+				if (desc.startsWith('Creating PR')) return 'Pull request created.';
+			}
+			const t: Record<string, string> = {
+				think: 'Done thinking.', read_file: 'File read.', write_file: 'File written.',
+				edit_file: 'File edited.', run_command: 'Command done.', search_files: 'Search complete.',
+				create_pr: 'Pull request created.', browse_repo: 'Repository browsed.'
+			};
+			return t[step.type] || 'Done.';
+		}
+
+		if (step.status === 'failed') {
+			if (!isGeneric) return 'Failed: ' + desc + '.';
+			const t: Record<string, string> = {
+				read_file: 'Failed to read file.', write_file: 'Failed to write file.',
+				edit_file: 'Failed to edit file.', run_command: 'Command failed.',
+				search_files: 'Search failed.', create_pr: 'Failed to create PR.'
+			};
+			return t[step.type] || 'Step failed.';
+		}
+
+		return desc;
 	}
 
-	function getCompletedText(type: string, description: string): string {
-		// Build completion text from the description
-		if (description && !description.startsWith('Executing:') && !description.startsWith('Running ')) {
-			// "Reading index.ts" -> "Read index.ts."
-			// "Writing index.ts" -> "Wrote index.ts."
-			// "Editing index.ts" -> "Edited index.ts."
-			// "Searching for X" -> "Search complete."
-			// "Listing src" -> "Listed src."
-			if (description.startsWith('Reading ')) return description.replace('Reading ', 'Read ') + '.';
-			if (description.startsWith('Writing ')) return description.replace('Writing ', 'Wrote ') + '.';
-			if (description.startsWith('Editing ')) return description.replace('Editing ', 'Edited ') + '.';
-			if (description.startsWith('Searching ')) return 'Search complete.';
-			if (description.startsWith('Listing ')) return description.replace('Listing ', 'Listed ') + '.';
-			if (description.startsWith('Creating PR')) return 'Pull request created.';
-		}
-		const texts: Record<string, string> = {
-			think: 'Done thinking.',
-			read_file: 'File read.',
-			write_file: 'File written.',
-			edit_file: 'File edited.',
-			run_command: 'Command executed.',
-			search_files: 'Search complete.',
-			create_pr: 'Pull request created.',
-			browse_repo: 'Repository browsed.'
-		};
-		return texts[type] || 'Done.';
-	}
-
-	function getFailedText(type: string, description: string): string {
-		if (description && !description.startsWith('Executing:') && !description.startsWith('Running ')) {
-			return `Failed: ${description}.`;
-		}
-		const texts: Record<string, string> = {
-			think: 'Thinking failed.',
-			read_file: 'Failed to read file.',
-			write_file: 'Failed to write file.',
-			edit_file: 'Failed to edit file.',
-			run_command: 'Command failed.',
-			search_files: 'Search failed.',
-			create_pr: 'Failed to create PR.',
-			browse_repo: 'Failed to browse repo.'
-		};
-		return texts[type] || 'Step failed.';
-	}
-
-	$: statusText = step.status === 'running'
-		? getRunningText(step.type, step.description)
-		: step.status === 'completed'
-			? getCompletedText(step.type, step.description)
-			: step.status === 'failed'
-				? getFailedText(step.type, step.description)
-				: step.description;
-
+	$: statusText = getStatusText(step);
 	$: isActive = step.status === 'running' || step.status === 'pending';
 </script>
 
-<div class="inline-tool-step flex items-center gap-2 py-1" transition:slide={{ duration: 200 }}>
-	<!-- Icon -->
+<div class="flex items-center gap-2 py-0.5" transition:slide={{ duration: 200 }}>
 	<svg
 		class="w-3.5 h-3.5 flex-shrink-0"
-		class:text-amber-500={step.status === 'running'}
 		class:animate-pulse={step.status === 'running'}
-		style="{step.status === 'completed' ? 'color: var(--content-muted)' : step.status === 'failed' ? 'color: #ef4444' : step.status === 'pending' ? 'color: var(--content-muted)' : ''}"
-		fill="none"
-		stroke="currentColor"
-		viewBox="0 0 24 24"
+		style="color: {step.status === 'running' ? '#f59e0b' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
+		fill="none" stroke="currentColor" viewBox="0 0 24 24"
 	>
 		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
 	</svg>
 
-	<!-- Shimmer text -->
 	<span
-		class="text-base font-medium inline-tool-text"
+		class="text-[13px] font-medium shimmer-text"
 		class:shimmer-active={isActive}
 		class:shimmer-done={step.status === 'completed'}
 		class:shimmer-failed={step.status === 'failed'}
@@ -118,7 +87,7 @@
 </div>
 
 <style>
-	.inline-tool-text {
+	.shimmer-text {
 		background-clip: text;
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -138,38 +107,21 @@
 	}
 
 	.shimmer-done {
-		background-image: linear-gradient(
-			110deg,
-			var(--content-muted) 0%,
-			var(--content-muted) 100%
-		);
+		background-image: linear-gradient(110deg, var(--content-muted) 0%, var(--content-muted) 100%);
 		animation: shimmer-settle 0.6s ease-out forwards;
 	}
 
 	.shimmer-failed {
-		background-image: linear-gradient(
-			110deg,
-			#ef4444 0%,
-			#ef4444 100%
-		);
-		animation: none;
+		background-image: linear-gradient(110deg, #ef4444 0%, #ef4444 100%);
 	}
 
 	@keyframes shimmer {
-		0% {
-			background-position: 200% 0;
-		}
-		100% {
-			background-position: -200% 0;
-		}
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
 	}
 
 	@keyframes shimmer-settle {
-		0% {
-			background-position: -200% 0;
-		}
-		100% {
-			background-position: 0% 0;
-		}
+		0% { background-position: -200% 0; }
+		100% { background-position: 0% 0; }
 	}
 </style>
