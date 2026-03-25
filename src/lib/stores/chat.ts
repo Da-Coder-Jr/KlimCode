@@ -280,6 +280,10 @@ export async function sendMessage(content: string): Promise<void> {
 							fullContent += chunk.content || '';
 							streamingContent.set(fullContent);
 							break;
+						case 'text_replace':
+							fullContent = chunk.content || '';
+							streamingContent.set(fullContent);
+							break;
 						case 'agent_step':
 							if (chunk.agentStep) {
 								agentSteps.update((steps) => {

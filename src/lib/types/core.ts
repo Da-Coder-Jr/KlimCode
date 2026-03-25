@@ -192,7 +192,7 @@ export interface AppSettings {
 }
 
 export interface StreamChunk {
-	type: 'text' | 'tool_call' | 'tool_result' | 'agent_step' | 'error' | 'done';
+	type: 'text' | 'text_replace' | 'tool_call' | 'tool_result' | 'agent_step' | 'error' | 'done';
 	content?: string;
 	toolCall?: ToolCall;
 	toolResult?: ToolResult;

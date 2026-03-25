@@ -1,6 +1,7 @@
 import type { Message, ToolCall, AgentStep, StreamChunk } from '$types/core';
 import {
 	callNvidia,
+	callNvidiaNonStreaming,
 	streamNvidiaResponse,
 	buildSystemPrompt,
 	getAgentTools
@@ -31,23 +32,13 @@ export async function* executeAgent(
 		onStep
 	} = options;
 
-	// Get or create workspace
+	// Get or create workspace (no visible step — this is internal setup)
 	let workspace: Workspace | undefined;
 
 	if (repoOwner && repoName && githubToken) {
 		workspace = getWorkspace(conversationId);
 		if (!workspace) {
 			workspace = createWorkspace(conversationId, repoOwner, repoName, githubToken, baseBranch);
-			yield {
-				type: 'agent_step',
-				agentStep: {
-					id: 'workspace-init',
-					type: 'think',
-					status: 'completed',
-					description: `Connected to ${repoOwner}/${repoName}`,
-					completedAt: new Date().toISOString()
-				}
-			};
 		}
 	}
 
@@ -70,10 +61,10 @@ export async function* executeAgent(
 		round++;
 
 		let fullContent = '';
-		const toolCalls: ToolCall[] = [];
+		let toolCalls: ToolCall[] = [];
 
 		try {
-			// Stream the response so text appears progressively in the UI
+			// Stream the response so text appears progressively
 			const response = await callNvidia({
 				apiKey,
 				model,
@@ -89,7 +80,6 @@ export async function* executeAgent(
 			const reader = response.body.getReader();
 			const decoder = new TextDecoder();
 			let buffer = '';
-			// Accumulate tool_call deltas by index (they arrive as chunks)
 			const tcMap = new Map<number, { id: string; name: string; args: string }>();
 
 			while (true) {
@@ -136,13 +126,24 @@ export async function* executeAgent(
 
 			reader.releaseLock();
 
-			// Convert accumulated deltas to proper ToolCall objects
+			// Convert streaming tool call deltas to ToolCall objects
 			for (const [, tc] of Array.from(tcMap.entries()).sort(([a], [b]) => a - b)) {
 				toolCalls.push({
 					id: tc.id || crypto.randomUUID(),
 					type: 'function',
 					function: { name: tc.name, arguments: tc.args }
 				});
+			}
+
+			// If the model didn't use the tool calling API but instead output
+			// tool calls as raw JSON text, parse them out and fix the display
+			if (toolCalls.length === 0 && fullContent && toolContext) {
+				const parsed = parseTextToolCalls(fullContent);
+				if (parsed.toolCalls.length > 0) {
+					toolCalls = parsed.toolCalls;
+					fullContent = parsed.cleanText;
+					yield { type: 'text_replace', content: fullContent };
+				}
 			}
 		} catch (error) {
 			yield { type: 'error', error: error instanceof Error ? error.message : 'NVIDIA API error' };
@@ -213,6 +214,48 @@ function buildAPIMessages(
 		{ role: 'system', content: systemPrompt },
 		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
 	];
+}
+
+/**
+ * Parse tool calls that some models output as raw JSON text instead of using the API.
+ * Handles formats like: {"name": "read_file", "parameters": {"path": "..."}}
+ * and: {"type": "function", "name": "...", "parameters": {...}}
+ */
+function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
+	const toolCalls: ToolCall[] = [];
+	let cleanText = text;
+
+	// Match JSON objects that look like tool calls on their own lines
+	const jsonToolPattern = /\n?\s*\{[\s]*"(?:type"\s*:\s*"function"\s*,\s*")?name"\s*:\s*"(\w+)"\s*,\s*"parameters"\s*:\s*(\{[^}]*(?:\{[^}]*\}[^}]*)?\})\s*\}\s*\n?/g;
+	let match: RegExpExecArray | null;
+	const regions: Array<[number, number]> = [];
+
+	while ((match = jsonToolPattern.exec(text)) !== null) {
+		const toolName = match[1];
+		const argsStr = match[2];
+
+		try {
+			JSON.parse(argsStr); // validate it's valid JSON
+			toolCalls.push({
+				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				type: 'function',
+				function: { name: toolName, arguments: argsStr }
+			});
+			regions.push([match.index, match.index + match[0].length]);
+		} catch {
+			// Not valid JSON, skip
+		}
+	}
+
+	// Remove matched regions from text (in reverse to preserve indices)
+	if (regions.length > 0) {
+		for (let i = regions.length - 1; i >= 0; i--) {
+			cleanText = cleanText.slice(0, regions[i][0]) + cleanText.slice(regions[i][1]);
+		}
+		cleanText = cleanText.trim();
+	}
+
+	return { cleanText, toolCalls };
 }
 
 function buildStepDescription(toolName: string, argsJson: string): string {
