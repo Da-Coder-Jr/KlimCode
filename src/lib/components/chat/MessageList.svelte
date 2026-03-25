@@ -2,7 +2,7 @@
 	import { afterUpdate, tick, onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import type { Message } from '$types/core';
 	import ChatMessage from './ChatMessage.svelte';
-	import { isStreaming, streamingContent, inputMessage } from '$stores/chat';
+	import { isStreaming, streamingContent, inputMessage, agentSteps } from '$stores/chat';
 	import { fade } from 'svelte/transition';
 
 	export let messages: Message[] = [];
@@ -118,7 +118,7 @@
 			{/each}
 
 			{#if streamingMsg}
-				<ChatMessage message={streamingMsg} isStreaming={true} />
+				<ChatMessage message={streamingMsg} isStreaming={true} liveAgentSteps={$agentSteps} />
 			{/if}
 		</div>
 	{/if}

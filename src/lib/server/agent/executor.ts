@@ -110,7 +110,7 @@ export async function* executeAgent(
 				id: toolCall.id,
 				type: mapToolToStep(toolCall.function.name),
 				status: 'running',
-				description: `Executing: ${toolCall.function.name}`,
+				description: buildStepDescription(toolCall.function.name, toolCall.function.arguments),
 				startedAt: new Date().toISOString()
 			};
 
@@ -155,6 +155,26 @@ function buildAPIMessages(
 		{ role: 'system', content: systemPrompt },
 		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
 	];
+}
+
+function buildStepDescription(toolName: string, argsJson: string): string {
+	try {
+		const args = JSON.parse(argsJson);
+		const path = args.path || args.directory || '';
+		const shortPath = path ? path.split('/').pop() || path : '';
+
+		switch (toolName) {
+			case 'read_file': return shortPath ? `Reading ${shortPath}` : 'Reading file';
+			case 'write_file': return shortPath ? `Writing ${shortPath}` : 'Writing file';
+			case 'edit_file': return shortPath ? `Editing ${shortPath}` : 'Editing file';
+			case 'search_files': return args.pattern ? `Searching for "${args.pattern}"` : 'Searching files';
+			case 'list_files': return path ? `Listing ${path}` : 'Listing files';
+			case 'create_pr': return args.title ? `Creating PR: ${args.title}` : 'Creating pull request';
+			default: return `Running ${toolName}`;
+		}
+	} catch {
+		return `Running ${toolName}`;
+	}
 }
 
 function mapToolToStep(toolName: string): AgentStep['type'] {
