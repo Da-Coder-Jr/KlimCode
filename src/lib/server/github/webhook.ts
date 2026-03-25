@@ -15,15 +15,10 @@ export function verifyWebhookSignature(
 	hmac.update(payload, 'utf-8');
 	const expectedSignature = `sha256=${hmac.digest('hex')}`;
 
-	const sigBuffer = Buffer.from(signature);
-	const expectedBuffer = Buffer.from(expectedSignature);
-
-	// timingSafeEqual throws if lengths differ — reject mismatched lengths
-	if (sigBuffer.length !== expectedBuffer.length) {
-		return false;
-	}
-
-	return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+	return crypto.timingSafeEqual(
+		Buffer.from(signature),
+		Buffer.from(expectedSignature)
+	);
 }
 
 export function parseWebhookEvent(

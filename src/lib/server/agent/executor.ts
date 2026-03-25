@@ -7,7 +7,7 @@ import {
 	getModelById
 } from '$server/ai/nvidia';
 import { executeToolCall, type ToolExecutionContext } from './tools';
-import { createWorkspace, getWorkspace, type Workspace } from './workspace';
+import { createWorkspace, getWorkspace, destroyWorkspace, type Workspace } from './workspace';
 
 const MAX_TOOL_ROUNDS = 15;
 
@@ -20,6 +20,7 @@ interface AgentExecutionOptions {
 	repoName?: string;
 	githubToken?: string;
 	baseBranch?: string;
+	onStep?: (step: AgentStep) => void;
 }
 
 export async function* executeAgent(
@@ -27,7 +28,8 @@ export async function* executeAgent(
 ): AsyncGenerator<StreamChunk> {
 	const {
 		apiKey, model, conversationId, messages,
-		repoOwner, repoName, githubToken, baseBranch
+		repoOwner, repoName, githubToken, baseBranch,
+		onStep
 	} = options;
 
 	// Validate that the selected model supports tool calling
@@ -71,7 +73,7 @@ export async function* executeAgent(
 	const tools = getAgentTools();
 
 	const toolContext: ToolExecutionContext | undefined = workspace
-		? { workspace }
+		? { workspace, onStep }
 		: undefined;
 
 	let round = 0;
@@ -117,14 +119,11 @@ export async function* executeAgent(
 		});
 
 		for (const toolCall of toolCalls) {
-			let toolArgs: Record<string, string> = {};
-			try { toolArgs = JSON.parse(toolCall.function.arguments); } catch { /* use empty */ }
-
 			const step: AgentStep = {
 				id: toolCall.id,
 				type: mapToolToStep(toolCall.function.name),
 				status: 'running',
-				description: describeToolCall(toolCall.function.name, toolArgs),
+				description: `Executing: ${toolCall.function.name}`,
 				startedAt: new Date().toISOString()
 			};
 
@@ -164,19 +163,10 @@ export async function* executeChat(options: {
 function buildAPIMessages(
 	systemPrompt: string,
 	messages: Message[]
-): Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> }> {
+): Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: ToolCall[] }> {
 	return [
 		{ role: 'system', content: systemPrompt },
-		...messages.map((msg) => {
-			const apiMsg: Record<string, unknown> = { role: msg.role, content: msg.content };
-			if (msg.toolCalls && msg.toolCalls.length > 0) {
-				apiMsg.tool_calls = msg.toolCalls;
-			}
-			if (msg.role === 'tool' && msg.metadata?.toolCallId) {
-				apiMsg.tool_call_id = msg.metadata.toolCallId;
-			}
-			return apiMsg as { role: string; content: string; tool_call_id?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> };
-		})
+		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
 	];
 }
 
@@ -186,16 +176,4 @@ function mapToolToStep(toolName: string): AgentStep['type'] {
 		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr'
 	};
 	return map[toolName] || 'think';
-}
-
-function describeToolCall(funcName: string, args: Record<string, string>): string {
-	switch (funcName) {
-		case 'read_file': return `Reading ${args.path || 'file'}`;
-		case 'write_file': return `Writing to ${args.path || 'file'}`;
-		case 'edit_file': return `Editing ${args.path || 'file'}`;
-		case 'search_files': return `Searching for "${args.pattern || ''}"`;
-		case 'list_files': return `Listing files${args.directory ? ` in ${args.directory}` : ''}`;
-		case 'create_pr': return `Creating PR: ${args.title || 'untitled'}`;
-		default: return `Executing ${funcName}`;
-	}
 }

@@ -1,6 +1,5 @@
 import type { Message, NvidiaModel, ToolCall, StreamChunk } from '$types/core';
-import { AVAILABLE_MODELS } from '$lib/models';
-export { AVAILABLE_MODELS };
+export { AVAILABLE_MODELS } from '$lib/models';
 
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 

@@ -1,14 +1,10 @@
+import type { AgentStep } from '$types/core';
 import { createTwoFilesPatch } from 'diff';
 
 /**
  * Serverless workspace — stores file changes in memory and commits
  * them to GitHub via the API. No local filesystem needed.
  */
-
-/** Encode a file path for use in GitHub API URLs (encode segments, preserve slashes) */
-function encodeGitHubPath(filePath: string): string {
-	return filePath.split('/').map(encodeURIComponent).join('/');
-}
 
 export interface WorkspaceFile {
 	path: string;
@@ -54,7 +50,7 @@ export class Workspace {
 
 		// Fetch from GitHub
 		const response = await fetch(
-			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeGitHubPath(path)}?ref=${this.baseBranch}`,
+			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(path)}?ref=${this.baseBranch}`,
 			{
 				headers: {
 					Authorization: `Bearer ${this.githubToken}`,
@@ -110,12 +106,11 @@ export class Workspace {
 		});
 	}
 
-	async searchFiles(pattern: string, searchType: 'filename' | 'content', directory?: string): Promise<string[]> {
+	async searchFiles(pattern: string, searchType: 'filename' | 'content'): Promise<string[]> {
 		if (searchType === 'content') {
 			// Use GitHub search API
-			const pathFilter = directory ? `+path:${encodeURIComponent(directory)}` : '';
 			const response = await fetch(
-				`https://api.github.com/search/code?q=${encodeURIComponent(pattern)}+repo:${this.repoOwner}/${this.repoName}${pathFilter}`,
+				`https://api.github.com/search/code?q=${encodeURIComponent(pattern)}+repo:${this.repoOwner}/${this.repoName}`,
 				{
 					headers: {
 						Authorization: `Bearer ${this.githubToken}`,
@@ -144,13 +139,7 @@ export class Workspace {
 		const data = await response.json();
 		const tree = data.tree || [];
 
-		let blobs = tree.filter((item: { path: string; type: string }) => item.type === 'blob');
-
-		// Filter by directory if specified
-		if (directory) {
-			const dir = directory.endsWith('/') ? directory : `${directory}/`;
-			blobs = blobs.filter((item: { path: string }) => item.path.startsWith(dir));
-		}
+		const blobs = tree.filter((item: { path: string; type: string }) => item.type === 'blob');
 
 		// Handle catch-all patterns: return all files
 		if (!pattern || pattern === '*' || pattern === '**' || pattern === '**/*' || pattern === '.') {
@@ -251,14 +240,14 @@ export class Workspace {
 			if (file.status === 'deleted') {
 				// Get file SHA for deletion
 				const fileRes = await fetch(
-					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeGitHubPath(file.path)}?ref=${branchName}`,
+					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}?ref=${branchName}`,
 					{ headers: this.githubHeaders() }
 				);
 
 				if (fileRes.ok) {
 					const fileData = await fileRes.json();
 					await fetch(
-						`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeGitHubPath(file.path)}`,
+						`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}`,
 						{
 							method: 'DELETE',
 							headers: this.githubHeaders(),
@@ -272,7 +261,7 @@ export class Workspace {
 				}
 			} else {
 				// Create or update file
-				const commitBody: Record<string, unknown> = {
+				const body: Record<string, unknown> = {
 					message: `${file.status === 'added' ? 'Add' : 'Update'} ${file.path}`,
 					content: Buffer.from(file.content).toString('base64'),
 					branch: branchName
@@ -281,21 +270,21 @@ export class Workspace {
 				// If updating, we need the current SHA
 				if (file.status === 'modified') {
 					const fileRes = await fetch(
-						`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeGitHubPath(file.path)}?ref=${branchName}`,
+						`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}?ref=${branchName}`,
 						{ headers: this.githubHeaders() }
 					);
 					if (fileRes.ok) {
 						const fileData = await fileRes.json();
-						commitBody.sha = fileData.sha;
+						body.sha = fileData.sha;
 					}
 				}
 
 				await fetch(
-					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeGitHubPath(file.path)}`,
+					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}`,
 					{
 						method: 'PUT',
 						headers: this.githubHeaders(),
-						body: JSON.stringify(commitBody)
+						body: JSON.stringify(body)
 					}
 				);
 			}

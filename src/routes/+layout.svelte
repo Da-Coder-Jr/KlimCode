@@ -25,7 +25,7 @@
 		'oauth_not_configured': 'GitHub OAuth is not configured on this server.'
 	};
 
-	onMount(() => {
+	onMount(async () => {
 		initTheme();
 
 		// Check for error params in URL (e.g. from GitHub OAuth callback)
@@ -38,22 +38,19 @@
 			window.history.replaceState({}, '', cleanUrl.toString());
 		}
 
-		// Run async initialization without blocking the cleanup return
-		(async () => {
-			await checkAuth();
-			if ($currentUser) {
-				await Promise.all([
-					loadConversations(),
-					loadSettings(),
-					checkGitHubConnection()
-				]);
-				// Show API key prompt if user has no API key set
-				if (!$settings.nvidiaApiKey) {
-					showApiKeyPrompt = true;
-				}
+		await checkAuth();
+		if ($currentUser) {
+			await Promise.all([
+				loadConversations(),
+				loadSettings(),
+				checkGitHubConnection()
+			]);
+			// Show API key prompt if user has no API key set
+			if (!$settings.nvidiaApiKey) {
+				showApiKeyPrompt = true;
 			}
-			initialized = true;
-		})();
+		}
+		initialized = true;
 
 		const saved = localStorage.getItem('klimcode_sidebar');
 		if (saved !== null) isNavCollapsed = saved === 'true';
