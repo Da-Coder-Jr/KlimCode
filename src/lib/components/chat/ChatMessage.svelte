@@ -1,11 +1,13 @@
 <script lang="ts">
-	import type { Message } from '$types/core';
+	import type { Message, AgentStep } from '$types/core';
 	import { renderMarkdown } from '$utils/markdown';
 	import { currentUser } from '$stores/auth';
 	import { createEventDispatcher, onMount } from 'svelte';
+	import InlineToolStep from './InlineToolStep.svelte';
 
 	export let message: Message;
 	export let isStreaming = false;
+	export let liveAgentSteps: AgentStep[] = [];
 
 	const dispatch = createEventDispatcher();
 
@@ -137,12 +139,31 @@
 						{@html renderedContent}
 					</div>
 
-					{#if isStreaming}
+					<!-- Thinking dots: only when no text yet -->
+					{#if isStreaming && !message.content && liveAgentSteps.length === 0}
 						<span class="inline-flex gap-1 ml-1 align-text-bottom">
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 						</span>
+					{/if}
+
+					<!-- Inline tool steps (live during streaming) -->
+					{#if liveAgentSteps.length > 0}
+						<div class="mt-2 space-y-0">
+							{#each liveAgentSteps as step (step.id)}
+								<InlineToolStep {step} />
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Inline tool steps (from saved message metadata) -->
+					{#if !isStreaming && message.metadata?.agentSteps && message.metadata.agentSteps.length > 0}
+						<div class="mt-2 space-y-0">
+							{#each message.metadata.agentSteps as step (step.id)}
+								<InlineToolStep {step} />
+							{/each}
+						</div>
 					{/if}
 				</div>
 			{/if}
@@ -178,7 +199,6 @@
 						</button>
 					{/if}
 
-					<!-- Retry/Regenerate button (for assistant messages) - inspired by chat-ui -->
 					{#if isAssistant}
 						<button
 							on:click={handleRegenerate}

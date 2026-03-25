@@ -1,7 +1,7 @@
 import type { Message, ToolCall, AgentStep, StreamChunk } from '$types/core';
 import {
+	callNvidia,
 	streamNvidiaResponse,
-	callNvidiaNonStreaming,
 	buildSystemPrompt,
 	getAgentTools
 } from '$server/ai/nvidia';
@@ -73,22 +73,80 @@ export async function* executeAgent(
 		const toolCalls: ToolCall[] = [];
 
 		try {
-			const result = await callNvidiaNonStreaming({
-				apiKey, model, messages: currentMessages,
+			// Stream the response so text appears progressively in the UI
+			const response = await callNvidia({
+				apiKey,
+				model,
+				messages: currentMessages,
 				tools: toolContext ? tools : undefined,
 				toolChoice: toolContext ? 'auto' : undefined,
+				stream: true,
 				maxTokens: 8192
 			});
 
-			fullContent = result.content;
-			if (result.toolCalls) toolCalls.push(...result.toolCalls);
+			if (!response.body) throw new Error('No response body');
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			// Accumulate tool_call deltas by index (they arrive as chunks)
+			const tcMap = new Map<number, { id: string; name: string; args: string }>();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (!trimmed.startsWith('data: ')) continue;
+					const data = trimmed.slice(6);
+					if (data === '[DONE]') break;
+
+					try {
+						const parsed = JSON.parse(data);
+						const choice = parsed.choices?.[0];
+						if (!choice) continue;
+
+						const delta = choice.delta;
+
+						if (delta?.content) {
+							fullContent += delta.content;
+							yield { type: 'text', content: delta.content };
+						}
+
+						if (delta?.tool_calls) {
+							for (const tc of delta.tool_calls) {
+								const idx = tc.index ?? 0;
+								if (!tcMap.has(idx)) tcMap.set(idx, { id: '', name: '', args: '' });
+								const entry = tcMap.get(idx)!;
+								if (tc.id) entry.id = tc.id;
+								if (tc.function?.name) entry.name += tc.function.name;
+								if (tc.function?.arguments) entry.args += tc.function.arguments;
+							}
+						}
+					} catch {
+						// Skip malformed chunks
+					}
+				}
+			}
+
+			reader.releaseLock();
+
+			// Convert accumulated deltas to proper ToolCall objects
+			for (const [, tc] of Array.from(tcMap.entries()).sort(([a], [b]) => a - b)) {
+				toolCalls.push({
+					id: tc.id || crypto.randomUUID(),
+					type: 'function',
+					function: { name: tc.name, arguments: tc.args }
+				});
+			}
 		} catch (error) {
 			yield { type: 'error', error: error instanceof Error ? error.message : 'NVIDIA API error' };
 			return;
-		}
-
-		if (fullContent) {
-			yield { type: 'text', content: fullContent };
 		}
 
 		if (toolCalls.length === 0 || !toolContext) {
@@ -110,7 +168,7 @@ export async function* executeAgent(
 				id: toolCall.id,
 				type: mapToolToStep(toolCall.function.name),
 				status: 'running',
-				description: `Executing: ${toolCall.function.name}`,
+				description: buildStepDescription(toolCall.function.name, toolCall.function.arguments),
 				startedAt: new Date().toISOString()
 			};
 
@@ -155,6 +213,26 @@ function buildAPIMessages(
 		{ role: 'system', content: systemPrompt },
 		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
 	];
+}
+
+function buildStepDescription(toolName: string, argsJson: string): string {
+	try {
+		const args = JSON.parse(argsJson);
+		const path = args.path || args.directory || '';
+		const shortPath = path ? path.split('/').pop() || path : '';
+
+		switch (toolName) {
+			case 'read_file': return shortPath ? `Reading ${shortPath}` : 'Reading file';
+			case 'write_file': return shortPath ? `Writing ${shortPath}` : 'Writing file';
+			case 'edit_file': return shortPath ? `Editing ${shortPath}` : 'Editing file';
+			case 'search_files': return args.pattern ? `Searching for "${args.pattern}"` : 'Searching files';
+			case 'list_files': return path ? `Listing ${path}` : 'Listing files';
+			case 'create_pr': return args.title ? `Creating PR: ${args.title}` : 'Creating pull request';
+			default: return `Running ${toolName}`;
+		}
+	} catch {
+		return `Running ${toolName}`;
+	}
 }
 
 function mapToolToStep(toolName: string): AgentStep['type'] {

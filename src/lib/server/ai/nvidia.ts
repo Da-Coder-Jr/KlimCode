@@ -230,7 +230,12 @@ Be concise, accurate, and practical. Format responses with markdown. When writin
 6. After making changes, summarize what you did clearly.
 ${context?.repo ? `\n## Repository\n- Repo: ${context.repo}\n- Branch: ${context.branch || 'main'}` : '\n## Note\nNo GitHub repository connected. You can only analyze and discuss code — file operations require a connected repo.'}
 
-Think step by step. Use tools one at a time. Explain your reasoning before each tool call.`;
+## Response Style
+- ALWAYS write a short acknowledgement sentence FIRST before using any tools. Example: "Sure, let me take a look at that." or "I'll fix that now — reading the file first."
+- Never silently jump straight into tool calls with zero text output.
+- After tools complete, summarize what you did clearly.
+
+Think step by step. Use tools one at a time.`;
 }
 
 export function getAgentTools(): NvidiaTool[] {
