@@ -3,10 +3,10 @@ import type { NvidiaModel } from '$types/core';
 export const AVAILABLE_MODELS: NvidiaModel[] = [
 	// ── Best coding models ──
 	{
-		id: 'qwen/qwen2.5-coder-32b-instruct',
-		name: 'Qwen 2.5 Coder 32B',
-		description: 'Best coding model — specialized for code generation and editing',
-		maxTokens: 16384,
+		id: 'qwen/qwen3-coder-480b-a35b-instruct',
+		name: 'Qwen3 Coder 480B',
+		description: 'Best coding model — 480B MoE, native function calling, agent-ready',
+		maxTokens: 32768,
 		supportsTools: true,
 		supportsFunctions: true,
 		category: 'code'
