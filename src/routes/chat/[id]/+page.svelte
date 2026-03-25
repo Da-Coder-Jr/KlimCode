@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { selectConversation, activeConversation, activeConversationId } from '$stores/chat';
+	import { selectConversation, activeConversation, activeConversationId, messages, agentSteps } from '$stores/chat';
 	import ChatWindow from '$components/chat/ChatWindow.svelte';
 	import Header from '$components/layout/Header.svelte';
 
@@ -14,6 +14,9 @@
 	});
 
 	$: if ($page.params.id && $activeConversation?.id !== $page.params.id) {
+		// Clear stale messages immediately when navigating to a different conversation
+		messages.set([]);
+		agentSteps.set([]);
 		selectConversation($page.params.id);
 	}
 </script>

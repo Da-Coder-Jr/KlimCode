@@ -2,7 +2,7 @@
 	import type { Message, AgentStep } from '$types/core';
 	import { renderMarkdown } from '$utils/markdown';
 	import { currentUser } from '$stores/auth';
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import InlineToolStep from './InlineToolStep.svelte';
 
 	export let message: Message;
@@ -59,22 +59,26 @@
 		dispatch('regenerate', { messageId: message.id });
 	}
 
-	onMount(() => {
-		if (messageEl) {
-			messageEl.querySelectorAll('.code-copy-btn').forEach((btn) => {
-				btn.addEventListener('click', () => {
-					const code = (btn as HTMLElement).dataset.code || '';
-					navigator.clipboard.writeText(code);
-					btn.textContent = 'Copied!';
-					setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-				});
-			});
+	// Use event delegation so copy buttons work even after streaming updates
+	function handleMessageClick(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		const btn = target.closest('.code-copy-btn') as HTMLElement | null;
+		if (btn) {
+			e.preventDefault();
+			const code = btn.dataset.code || '';
+			navigator.clipboard.writeText(code);
+			const label = btn.querySelector('.code-copy-label');
+			if (label) {
+				label.textContent = 'Copied!';
+				setTimeout(() => { if (label) label.textContent = 'Copy'; }, 2000);
+			}
 		}
-	});
+	}
 </script>
 
 <div
 	bind:this={messageEl}
+	on:click={handleMessageClick}
 	class="group relative flex w-full items-start gap-4 px-4 sm:px-6 py-5 transition-colors"
 >
 	<div class="max-w-3xl xl:max-w-4xl mx-auto flex gap-3.5 w-full">

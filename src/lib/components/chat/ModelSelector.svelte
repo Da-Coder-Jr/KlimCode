@@ -3,7 +3,7 @@
 	import { activeConversationId, changeConversationModel, conversations } from '$stores/chat';
 	import { AVAILABLE_MODELS } from '$lib/models';
 
-	export let currentModel = 'meta/llama-3.3-70b-instruct';
+	export let currentModel = AVAILABLE_MODELS[0]?.id || '';
 	export let open = false;
 
 	const dispatch = createEventDispatcher();
