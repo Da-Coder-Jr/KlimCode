@@ -114,7 +114,7 @@ export async function* executeAgent(
 								if (!tcMap.has(idx)) tcMap.set(idx, { id: '', name: '', args: '' });
 								const entry = tcMap.get(idx)!;
 								if (tc.id) entry.id = tc.id;
-								if (tc.function?.name) entry.name += tc.function.name;
+								if (tc.function?.name) entry.name = tc.function.name;
 								if (tc.function?.arguments) entry.args += tc.function.arguments;
 							}
 						}
@@ -214,7 +214,15 @@ function buildAPIMessages(
 ): Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: ToolCall[] }> {
 	return [
 		{ role: 'system', content: systemPrompt },
-		...messages.map((msg) => ({ role: msg.role, content: msg.content }))
+		...messages.map((msg) => {
+			const mapped: { role: string; content: string; tool_call_id?: string; tool_calls?: ToolCall[] } = {
+				role: msg.role,
+				content: msg.content
+			};
+			if ((msg as any).tool_call_id) mapped.tool_call_id = (msg as any).tool_call_id;
+			if ((msg as any).tool_calls) mapped.tool_calls = (msg as any).tool_calls;
+			return mapped;
+		})
 	];
 }
 
