@@ -2,7 +2,8 @@
 	import { afterUpdate, tick, onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import type { Message } from '$types/core';
 	import ChatMessage from './ChatMessage.svelte';
-	import { isStreaming, streamingContent, inputMessage, agentSteps } from '$stores/chat';
+	import ModelSelector from './ModelSelector.svelte';
+	import { isStreaming, streamingContent, inputMessage, agentSteps, activeConversation } from '$stores/chat';
 	import { fade } from 'svelte/transition';
 
 	export let messages: Message[] = [];
@@ -13,6 +14,7 @@
 	let shouldAutoScroll = true;
 	let showScrollBtn = false;
 	let resizeObserver: ResizeObserver | null = null;
+	let modelSelectorOpen = false;
 
 	afterUpdate(async () => {
 		if (shouldAutoScroll && scrollContainer) {
@@ -72,6 +74,15 @@
 		createdAt: new Date().toISOString()
 	} : null;
 
+	// Show thinking state when streaming but no content yet
+	$: thinkingMsg = $isStreaming && !$streamingContent ? {
+		id: 'thinking',
+		conversationId: '',
+		role: 'assistant' as const,
+		content: '',
+		createdAt: new Date().toISOString()
+	} : null;
+
 	const quickSuggestions = [
 		{ text: 'Write a function that validates email addresses', icon: 'code' },
 		{ text: 'Explain how async/await works in JavaScript', icon: 'learn' },
@@ -85,24 +96,39 @@
 	on:scroll={handleScroll}
 	class="flex-1 overflow-y-auto relative"
 >
-	{#if messages.length === 0 && !streamingMsg}
-		<!-- Empty state -->
+	{#if messages.length === 0 && !streamingMsg && !thinkingMsg}
+		<!-- Open WebUI-style empty state with prominent model selector -->
 		<div class="flex items-center justify-center h-full p-4">
 			<div class="text-center max-w-lg">
-				<div class="mb-6">
-					<img src="/favicon.svg" alt="KlimCode" class="w-14 h-14 mx-auto rounded-2xl shadow-soft" />
+				<div class="mb-4">
+					<img src="/favicon.svg" alt="KlimCode" class="w-12 h-12 mx-auto rounded-2xl shadow-soft" />
 				</div>
 
-				<h2 class="text-xl font-semibold mb-2" style="color: var(--content)">How can I help?</h2>
-				<p class="text-sm mb-8 max-w-sm mx-auto" style="color: var(--content-muted)">
-					I can write code, debug issues, explain concepts, and create GitHub PRs in Agent mode.
-				</p>
+				<!-- Prominent model selector like Open WebUI -->
+				{#if $activeConversation}
+					<div class="flex justify-center mb-2">
+						<ModelSelector
+							currentModel={$activeConversation.model}
+							bind:open={modelSelectorOpen}
+							variant="hero"
+						/>
+					</div>
+					<p class="text-[13px] mb-1" style="color: var(--content-muted)">
+						{#if $activeConversation.mode === 'agent'}
+							Agent mode — can read, write, and search files in your repo
+						{:else}
+							How can I help you today?
+						{/if}
+					</p>
+				{:else}
+					<h2 class="text-xl font-semibold mb-2" style="color: var(--content)">How can I help?</h2>
+				{/if}
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6">
 					{#each quickSuggestions as suggestion}
 						<button
 							on:click={() => useSuggestion(suggestion.text)}
-							class="group px-4 py-3.5 rounded-xl text-left transition-all duration-200"
+							class="group px-4 py-3.5 rounded-xl text-left transition-all duration-200 hover:bg-[var(--surface-hover)]"
 							style="border: 1px solid var(--border)"
 						>
 							<span class="text-[13px] transition-colors leading-snug" style="color: var(--content-tertiary)">{suggestion.text}</span>
@@ -119,6 +145,8 @@
 
 			{#if streamingMsg}
 				<ChatMessage message={streamingMsg} isStreaming={true} liveAgentSteps={$agentSteps} />
+			{:else if thinkingMsg}
+				<ChatMessage message={thinkingMsg} isStreaming={true} liveAgentSteps={$agentSteps} />
 			{/if}
 		</div>
 	{/if}

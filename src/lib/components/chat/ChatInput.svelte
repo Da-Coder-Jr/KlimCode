@@ -12,7 +12,6 @@
 	function handleSubmit() {
 		if ($isStreaming || (!$inputMessage.trim() && attachedFiles.length === 0)) return;
 
-		// Build final message with file contents appended
 		let finalMessage = $inputMessage;
 		for (const file of attachedFiles) {
 			if (file.type.startsWith('image/')) {
@@ -60,7 +59,7 @@
 		if (!files || files.length === 0) return;
 
 		for (const file of Array.from(files)) {
-			const maxSize = 5 * 1024 * 1024; // 5MB
+			const maxSize = 5 * 1024 * 1024;
 			if (file.size > maxSize) {
 				attachedFiles = [...attachedFiles, {
 					name: file.name,
@@ -100,7 +99,6 @@
 			}
 		}
 
-		// Reset file input
 		if (fileInput) fileInput.value = '';
 	}
 
@@ -123,14 +121,29 @@
 	});
 </script>
 
-<div class="flex-shrink-0 p-3 sm:p-4" style="border-top: 1px solid var(--border); background-color: var(--surface)">
+<div class="flex-shrink-0 px-3 sm:px-4 pb-3 sm:pb-4 pt-2" style="background-color: var(--surface)">
 	<div class="max-w-3xl xl:max-w-4xl mx-auto">
+		<!-- Generating indicator bar - prominent, above the input -->
+		{#if $isStreaming}
+			<div class="flex items-center justify-center gap-3 mb-2 py-2">
+				<button
+					on:click={handleStop}
+					class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-90 active:scale-[0.97]"
+					style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)"
+				>
+					<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+						<rect x="6" y="6" width="12" height="12" rx="2" />
+					</svg>
+					Stop generating
+				</button>
+			</div>
+		{/if}
+
 		<!-- Attached files preview -->
 		{#if attachedFiles.length > 0}
 			<div class="flex flex-wrap gap-2 mb-2">
 				{#each attachedFiles as file, i}
 					{#if file.preview}
-						<!-- Image preview -->
 						<div class="relative group">
 							<img src={file.preview} alt={file.name} class="w-16 h-16 rounded-lg object-cover" style="border: 1px solid var(--border)" />
 							<button
@@ -143,7 +156,6 @@
 							</button>
 						</div>
 					{:else}
-						<!-- File preview -->
 						<div class="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
 							<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -167,6 +179,7 @@
 			<div
 				class="relative rounded-2xl transition-all"
 				class:paste-glow={pasteGlow}
+				class:generating-border={$isStreaming}
 				style="background-color: var(--surface-secondary); border: 1px solid var(--border)"
 			>
 				<textarea
@@ -175,7 +188,7 @@
 					on:keydown={handleKeydown}
 					on:input={handleInput}
 					on:paste={handlePaste}
-					placeholder={$isStreaming ? 'AI is generating...' : 'Message KlimCode...'}
+					placeholder={$isStreaming ? 'Wait for response...' : 'Message KlimCode...'}
 					disabled={$isStreaming}
 					rows="1"
 					class="scrollbar-custom w-full bg-transparent resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[200px] disabled:opacity-40"
@@ -193,7 +206,7 @@
 				/>
 
 				<div class="flex items-center justify-between px-3 pb-2.5">
-					<div class="flex items-center gap-2">
+					<div class="flex items-center gap-1">
 						<!-- File upload button -->
 						<button
 							type="button"
@@ -202,41 +215,18 @@
 							title="Attach file"
 							disabled={$isStreaming}
 						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+							<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
 							</svg>
 						</button>
-
-						{#if $isStreaming}
-							<div class="flex items-center gap-2 text-xs" style="color: var(--content-muted)">
-								<div class="flex gap-1">
-									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
-									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
-									<span class="thinking-dot w-1 h-1 rounded-full" style="background-color: var(--content-muted)"></span>
-								</div>
-								<span class="text-[11px]">Generating...</span>
-							</div>
-						{/if}
 					</div>
 
 					<div class="flex items-center gap-1.5">
-						{#if $isStreaming}
-							<button
-								type="button"
-								on:click={handleStop}
-								class="stop-btn p-2 rounded-xl transition-all"
-								style="background-color: var(--surface-tertiary); color: var(--content-tertiary)"
-								title="Stop generating"
-							>
-								<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-									<rect x="6" y="6" width="12" height="12" rx="1" />
-								</svg>
-							</button>
-						{:else}
+						{#if !$isStreaming}
 							<button
 								type="submit"
 								disabled={!$inputMessage.trim() && attachedFiles.length === 0}
-								class="p-2 rounded-xl transition-all duration-150"
+								class="p-2 rounded-full transition-all duration-150"
 								style="{$inputMessage.trim() || attachedFiles.length > 0
 									? 'background-color: var(--content); color: var(--surface)'
 									: 'background-color: var(--surface-tertiary); color: var(--content-muted); cursor: not-allowed'}"
@@ -252,11 +242,23 @@
 			</div>
 		</form>
 
-		<div class="flex items-center justify-center mt-2">
+		<div class="flex items-center justify-center mt-1.5">
 			<span class="text-[11px]" style="color: var(--content-muted)">
 				Free AI by <a href="https://build.nvidia.com" target="_blank" rel="noopener" class="transition-colors" style="color: var(--content-tertiary)">NVIDIA NIM</a>
-				&middot; Enter to send, Shift+Enter for new line
+				&middot; Enter to send
 			</span>
 		</div>
 	</div>
 </div>
+
+<style>
+	.generating-border {
+		border-color: var(--content-muted) !important;
+		animation: border-pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes border-pulse {
+		0%, 100% { border-color: var(--border); }
+		50% { border-color: var(--content-muted); }
+	}
+</style>

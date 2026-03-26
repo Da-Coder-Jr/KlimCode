@@ -5,19 +5,32 @@
 
 	export let currentModel = AVAILABLE_MODELS[0]?.id || '';
 	export let open = false;
+	export let variant: 'header' | 'hero' = 'header';
 
 	const dispatch = createEventDispatcher();
 
 	let searchQuery = '';
 
-	// Build models from the central models list
 	$: models = AVAILABLE_MODELS.map(m => ({
 		id: m.id,
 		name: m.name,
 		badge: m.category === 'code' ? 'Code' : m.category === 'reasoning' ? 'Reasoning' : 'Chat',
 		category: m.category,
-		description: m.description
+		description: m.description,
+		supportsTools: m.supportsTools
 	}));
+
+	// If currentModel isn't in AVAILABLE_MODELS, auto-migrate to first available
+	$: {
+		const found = models.find(m => m.id === currentModel);
+		if (!found && currentModel && models.length > 0) {
+			const fallbackId = models[0].id;
+			const convId = $activeConversationId;
+			if (convId) {
+				changeConversationModel(convId, fallbackId);
+			}
+		}
+	}
 
 	$: selectedModel = models.find(m => m.id === currentModel) || models[0];
 
@@ -31,7 +44,6 @@
 		searchQuery = '';
 		dispatch('change', { model: id });
 
-		// Actually update the conversation model in the database
 		const convId = $activeConversationId;
 		if (convId) {
 			await changeConversationModel(convId, id);
@@ -65,22 +77,44 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div class="relative">
-	<button
-		on:click={() => open = !open}
-		class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all hover:opacity-80"
-		style="background-color: var(--surface-tertiary); border: 1px solid var(--border)"
-	>
-		<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-		<span class="text-xs truncate max-w-[130px] font-medium" style="color: var(--content-tertiary)">{selectedModel?.name || 'Select Model'}</span>
-		<svg class="w-3 h-3 transition-transform" class:rotate-180={open} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-		</svg>
-	</button>
+	{#if variant === 'hero'}
+		<!-- Open WebUI-style hero model selector for empty state -->
+		<button
+			on:click={() => open = !open}
+			class="flex items-center gap-2.5 px-4 py-2 rounded-xl text-base transition-all hover:opacity-80"
+			style="color: var(--content)"
+		>
+			<span class="text-lg font-semibold">{selectedModel?.name || 'Select Model'}</span>
+			<svg class="w-4 h-4 transition-transform" class:rotate-180={open} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
+		</button>
+	{:else}
+		<!-- Compact header variant -->
+		<button
+			on:click={() => open = !open}
+			class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all hover:opacity-80"
+			style="background-color: var(--surface-tertiary); border: 1px solid var(--border)"
+		>
+			<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+			<span class="text-xs truncate max-w-[140px] font-medium" style="color: var(--content-secondary)">{selectedModel?.name || 'Select Model'}</span>
+			<svg class="w-3 h-3 transition-transform" class:rotate-180={open} style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
+		</button>
+	{/if}
 
 	{#if open}
 		<button class="fixed inset-0 z-40" on:click={() => { open = false; searchQuery = ''; }} aria-label="Close"></button>
 
-		<div class="absolute top-full right-0 mt-1.5 w-80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+		<div
+			class="absolute mt-1.5 w-80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down"
+			class:top-full={true}
+			class:right-0={variant === 'header'}
+			class:left-1/2={variant === 'hero'}
+			class:-translate-x-1/2={variant === 'hero'}
+			style="background-color: var(--surface-secondary); border: 1px solid var(--border)"
+		>
 			<div class="px-3 py-2.5" style="border-bottom: 1px solid var(--border)">
 				<div class="relative">
 					<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,9 +152,14 @@
 							<div class="text-[11px] truncate" style="color: var(--content-muted)">{model.description}</div>
 						</div>
 
-						<span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md border {getBadgeClass(model.category)} flex-shrink-0">
-							{model.badge}
-						</span>
+						<div class="flex items-center gap-1.5 flex-shrink-0">
+							{#if model.supportsTools}
+								<span class="text-[9px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Tools</span>
+							{/if}
+							<span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md border {getBadgeClass(model.category)}">
+								{model.badge}
+							</span>
+						</div>
 
 						{#if currentModel === model.id}
 							<svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

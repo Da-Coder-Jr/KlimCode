@@ -3,14 +3,13 @@ import { Workspace, WorkspaceError } from './workspace';
 
 export interface ToolExecutionContext {
 	workspace: Workspace;
-	onStep?: (step: AgentStep) => void;
 }
 
 export async function executeToolCall(
 	toolCall: ToolCall,
 	context: ToolExecutionContext
 ): Promise<ToolResult> {
-	const { workspace, onStep } = context;
+	const { workspace } = context;
 	const funcName = toolCall.function.name;
 	let args: Record<string, string>;
 
@@ -23,16 +22,6 @@ export async function executeToolCall(
 			isError: true
 		};
 	}
-
-	const step: AgentStep = {
-		id: toolCall.id,
-		type: mapFunctionToStepType(funcName),
-		status: 'running',
-		description: describeToolCall(funcName, args),
-		startedAt: new Date().toISOString()
-	};
-
-	onStep?.(step);
 
 	try {
 		let result: string;
@@ -57,22 +46,12 @@ export async function executeToolCall(
 				result = await handleCreatePR(workspace, args);
 				break;
 			default:
-				result = `Unknown tool: ${funcName}`;
+				result = `Unknown tool: ${funcName}. Available tools are: read_file, write_file, edit_file, search_files, list_files, create_pr`;
 		}
-
-		step.status = 'completed';
-		step.result = result;
-		step.completedAt = new Date().toISOString();
-		onStep?.(step);
 
 		return { toolCallId: toolCall.id, content: result };
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-		step.status = 'failed';
-		step.error = errorMsg;
-		step.completedAt = new Date().toISOString();
-		onStep?.(step);
-
 		return { toolCallId: toolCall.id, content: `Error: ${errorMsg}`, isError: true };
 	}
 }
@@ -131,29 +110,5 @@ async function handleCreatePR(workspace: Workspace, args: Record<string, string>
 		return `PR #${pr.number} created!\nURL: ${pr.url}\nBranch: ${branchName}\nFiles changed: ${changes.map((f) => f.path).join(', ')}`;
 	} catch (error) {
 		return `Failed to create PR: ${error instanceof Error ? error.message : 'Unknown error'}`;
-	}
-}
-
-function mapFunctionToStepType(funcName: string): AgentStep['type'] {
-	const mapping: Record<string, AgentStep['type']> = {
-		read_file: 'read_file',
-		write_file: 'write_file',
-		edit_file: 'edit_file',
-		search_files: 'search_files',
-		list_files: 'browse_repo',
-		create_pr: 'create_pr'
-	};
-	return mapping[funcName] || 'think';
-}
-
-function describeToolCall(funcName: string, args: Record<string, string>): string {
-	switch (funcName) {
-		case 'read_file': return `Reading ${args.path}`;
-		case 'write_file': return `Writing to ${args.path}`;
-		case 'edit_file': return `Editing ${args.path}`;
-		case 'search_files': return `Searching for ${args.pattern}`;
-		case 'list_files': return `Listing files${args.directory ? ` in ${args.directory}` : ''}`;
-		case 'create_pr': return `Creating PR: ${args.title}`;
-		default: return `Executing ${funcName}`;
 	}
 }
