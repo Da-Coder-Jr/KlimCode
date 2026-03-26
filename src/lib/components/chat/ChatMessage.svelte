@@ -23,6 +23,61 @@
 	$: isUser = message.role === 'user';
 	$: isAssistant = message.role === 'assistant';
 
+	// Get active steps (live or saved)
+	$: activeSteps = isStreaming ? liveAgentSteps : (message.metadata?.agentSteps || []);
+
+	// Build interleaved segments: [{type: 'text', html}, {type: 'steps', steps}]
+	$: segments = buildSegments(message.content, activeSteps, renderedContent);
+
+	function buildSegments(content: string, steps: AgentStep[], rendered: string): Array<{type: 'text', html: string} | {type: 'steps', steps: AgentStep[]}> {
+		if (!steps || steps.length === 0 || !content) {
+			return [{ type: 'text', html: rendered }];
+		}
+
+		// Check if any steps have contentOffset
+		const stepsWithOffset = steps.filter(s => s.contentOffset !== undefined && s.contentOffset !== null);
+		if (stepsWithOffset.length === 0) {
+			// No offsets — show text first, then all steps at bottom
+			return [
+				{ type: 'text', html: rendered },
+				{ type: 'steps', steps }
+			];
+		}
+
+		// Sort steps by contentOffset
+		const sortedSteps = [...steps].sort((a, b) => (a.contentOffset ?? Infinity) - (b.contentOffset ?? Infinity));
+
+		// Get unique offsets and group steps by offset
+		const offsetGroups = new Map<number, AgentStep[]>();
+		for (const step of sortedSteps) {
+			const offset = step.contentOffset ?? content.length;
+			if (!offsetGroups.has(offset)) offsetGroups.set(offset, []);
+			offsetGroups.get(offset)!.push(step);
+		}
+
+		const offsets = [...offsetGroups.keys()].sort((a, b) => a - b);
+		const result: Array<{type: 'text', html: string} | {type: 'steps', steps: AgentStep[]}> = [];
+
+		let lastOffset = 0;
+		for (const offset of offsets) {
+			// Render the text segment before this offset
+			const textSlice = content.slice(lastOffset, offset);
+			if (textSlice.trim()) {
+				result.push({ type: 'text', html: renderMarkdown(textSlice) });
+			}
+			result.push({ type: 'steps', steps: offsetGroups.get(offset)! });
+			lastOffset = offset;
+		}
+
+		// Render remaining text after last offset
+		const remaining = content.slice(lastOffset);
+		if (remaining.trim()) {
+			result.push({ type: 'text', html: renderMarkdown(remaining) });
+		}
+
+		return result;
+	}
+
 	function handleCopy() {
 		navigator.clipboard.writeText(message.content);
 		copied = true;
@@ -139,35 +194,28 @@
 			{:else}
 				<!-- Assistant message with bubble -->
 				<div class="message-content relative rounded-2xl px-5 py-3.5" style="background-color: var(--chat-bubble-bg); border: 1px solid var(--chat-bubble-border)">
-					<div class="prose-chat">
-						{@html renderedContent}
-					</div>
-
 					<!-- Thinking dots: only when no text yet -->
-					{#if isStreaming && !message.content && liveAgentSteps.length === 0}
+					{#if isStreaming && !message.content && activeSteps.length === 0}
 						<span class="inline-flex gap-1 ml-1 align-text-bottom">
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 							<span class="thinking-dot w-1.5 h-1.5 rounded-full" style="background-color: var(--content-muted)"></span>
 						</span>
-					{/if}
-
-					<!-- Inline tool steps (live during streaming) -->
-					{#if liveAgentSteps.length > 0}
-						<div class="mt-2 space-y-0">
-							{#each liveAgentSteps as step (step.id)}
-								<InlineToolStep {step} />
-							{/each}
-						</div>
-					{/if}
-
-					<!-- Inline tool steps (from saved message metadata) -->
-					{#if !isStreaming && message.metadata?.agentSteps && message.metadata.agentSteps.length > 0}
-						<div class="mt-2 space-y-0">
-							{#each message.metadata.agentSteps as step (step.id)}
-								<InlineToolStep {step} />
-							{/each}
-						</div>
+					{:else}
+						<!-- Interleaved text and tool steps -->
+						{#each segments as segment}
+							{#if segment.type === 'text'}
+								<div class="prose-chat">
+									{@html segment.html}
+								</div>
+							{:else if segment.type === 'steps'}
+								<div class="space-y-0">
+									{#each segment.steps as step (step.id)}
+										<InlineToolStep {step} />
+									{/each}
+								</div>
+							{/if}
+						{/each}
 					{/if}
 				</div>
 			{/if}
