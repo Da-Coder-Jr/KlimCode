@@ -108,11 +108,7 @@
 		<button class="fixed inset-0 z-40" on:click={() => { open = false; searchQuery = ''; }} aria-label="Close"></button>
 
 		<div
-			class="absolute mt-1.5 w-80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down"
-			class:top-full={true}
-			class:right-0={variant === 'header'}
-			class:left-1/2={variant === 'hero'}
-			class:-translate-x-1/2={variant === 'hero'}
+			class="absolute mt-1.5 w-80 rounded-2xl shadow-elevated z-50 overflow-hidden animate-slide-down top-full {variant === 'hero' ? 'left-1/2 -translate-x-1/2' : 'right-0'}"
 			style="background-color: var(--surface-secondary); border: 1px solid var(--border)"
 		>
 			<div class="px-3 py-2.5" style="border-bottom: 1px solid var(--border)">
