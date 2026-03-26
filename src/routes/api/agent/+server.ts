@@ -36,16 +36,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			repoOwner,
 			repoName,
 			githubToken: locals.user?.githubToken,
-			baseBranch,
-			onStep: (step) => {
-				const idx = agentSteps.findIndex((s) => s.id === step.id);
-				if (idx >= 0) agentSteps[idx] = step;
-				else agentSteps.push(step);
-			}
+			baseBranch
 		});
 
 		for await (const chunk of generator) {
 			if (chunk.type === 'text' && chunk.content) fullContent += chunk.content;
+			if (chunk.type === 'text_replace' && chunk.content !== undefined) fullContent = chunk.content;
+			if (chunk.type === 'agent_step' && chunk.agentStep) {
+				const idx = agentSteps.findIndex((s) => s.id === chunk.agentStep!.id);
+				if (idx >= 0) agentSteps[idx] = chunk.agentStep;
+				else agentSteps.push(chunk.agentStep);
+			}
 			yield chunk;
 		}
 

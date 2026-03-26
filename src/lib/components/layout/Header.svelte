@@ -28,30 +28,22 @@
 	}
 </script>
 
-<header class="sticky top-0 z-30 w-full pt-0.5 pb-1 flex-shrink-0">
-	<div class="navbar-gradient pb-4">
-		<div class="flex items-center justify-between px-4 h-12">
-			<div class="flex items-center gap-3 min-w-0">
+<header class="sticky top-0 z-30 w-full flex-shrink-0">
+	<div class="navbar-gradient pb-3">
+		<div class="flex items-center justify-between px-4 h-11">
+			<div class="flex items-center gap-2.5 min-w-0 ml-10 md:ml-10">
 				{#if $activeConversation}
-					<div class="flex items-center gap-2.5 min-w-0 ml-10 md:ml-10">
-						{#if $activeConversation.mode === 'agent'}
-							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex-shrink-0">
-								<div class="w-1 h-1 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse-slow"></div>
-								Agent
-							</span>
-						{:else}
-							<span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md flex-shrink-0" style="color: var(--content-tertiary); background-color: var(--surface-tertiary); border: 1px solid var(--border)">
-								Chat
-							</span>
-						{/if}
-						<h1 class="text-sm truncate" style="color: var(--content-tertiary)">
-							{$activeConversation.title}
-						</h1>
-					</div>
+					{#if $activeConversation.mode === 'agent'}
+						<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex-shrink-0">
+							<div class="w-1 h-1 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse-slow"></div>
+							Agent
+						</span>
+					{/if}
+					<h1 class="text-sm truncate" style="color: var(--content-tertiary)">
+						{$activeConversation.title}
+					</h1>
 				{:else}
-					<div class="flex items-center gap-2 ml-10 md:ml-10">
-						<span class="font-medium text-sm" style="color: var(--content-secondary)">KlimCode</span>
-					</div>
+					<span class="font-medium text-sm" style="color: var(--content-secondary)">KlimCode</span>
 				{/if}
 			</div>
 
@@ -60,6 +52,7 @@
 					<ModelSelector
 						currentModel={$activeConversation.model}
 						bind:open={modelSelectorOpen}
+						variant="header"
 					/>
 				{/if}
 

@@ -51,7 +51,7 @@ export async function* executeAgent(
 	const tools = getAgentTools();
 
 	const toolContext: ToolExecutionContext | undefined = workspace
-		? { workspace, onStep }
+		? { workspace }
 		: undefined;
 
 	let round = 0;
@@ -165,11 +165,12 @@ export async function* executeAgent(
 		});
 
 		for (const toolCall of toolCalls) {
+			const stepDescription = buildStepDescription(toolCall.function.name, toolCall.function.arguments);
 			const step: AgentStep = {
 				id: toolCall.id,
 				type: mapToolToStep(toolCall.function.name),
 				status: 'running',
-				description: buildStepDescription(toolCall.function.name, toolCall.function.arguments),
+				description: stepDescription,
 				startedAt: new Date().toISOString()
 			};
 
@@ -179,6 +180,7 @@ export async function* executeAgent(
 
 			step.status = result.isError ? 'failed' : 'completed';
 			step.result = result.content;
+			step.error = result.isError ? result.content : undefined;
 			step.completedAt = new Date().toISOString();
 
 			yield { type: 'agent_step', agentStep: step };
