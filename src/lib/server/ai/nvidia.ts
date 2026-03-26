@@ -419,6 +419,23 @@ export function getAgentTools(): NvidiaTool[] {
 		{
 			type: 'function',
 			function: {
+				name: 'list_files',
+				description: 'List files and directories at the given path',
+				parameters: {
+					type: 'object',
+					properties: {
+						directory: {
+							type: 'string',
+							description: 'The directory path relative to the workspace root (empty string for root)'
+						}
+					},
+					required: []
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
 				name: 'create_pr',
 				description: 'Create a GitHub pull request with the changes made in the sandbox',
 				parameters: {

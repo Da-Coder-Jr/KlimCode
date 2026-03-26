@@ -311,7 +311,7 @@ export async function sendMessage(content: string): Promise<void> {
 			}
 		}
 
-		// Add assistant message
+		// Add assistant message (or show error if empty)
 		if (fullContent) {
 			const assistantMsg: Message = {
 				id: crypto.randomUUID(),
@@ -325,6 +325,8 @@ export async function sendMessage(content: string): Promise<void> {
 				}
 			};
 			messages.update((msgs) => [...msgs, assistantMsg]);
+		} else if (!get(error)) {
+			error.set('The AI returned an empty response. Please try again.');
 		}
 
 		// Auto-title the conversation using AI summary
