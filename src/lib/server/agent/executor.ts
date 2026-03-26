@@ -9,7 +9,8 @@ import {
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
-const MAX_TOOL_ROUNDS = 15;
+// No hard limit — the model decides when to stop calling tools
+const MAX_TOOL_ROUNDS = Infinity;
 
 interface AgentExecutionOptions {
 	apiKey: string;
@@ -171,7 +172,8 @@ export async function* executeAgent(
 				type: mapToolToStep(toolCall.function.name),
 				status: 'running',
 				description: stepDescription,
-				startedAt: new Date().toISOString()
+				startedAt: new Date().toISOString(),
+				toolArgs: toolCall.function.arguments
 			};
 
 			yield { type: 'agent_step', agentStep: step };
@@ -192,7 +194,6 @@ export async function* executeAgent(
 		}
 	}
 
-	yield { type: 'text', content: '\n\n*Reached maximum tool rounds. Continue the conversation if more work is needed.*' };
 	yield { type: 'done' };
 }
 

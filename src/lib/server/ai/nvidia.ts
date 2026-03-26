@@ -316,6 +316,7 @@ You have these tools available through the function calling API:
 3. Always read_file before edit_file to get the exact text.
 4. When edit_file fails, use write_file to rewrite the whole file.
 5. Make minimal targeted changes.
+6. Do NOT create a pull request (create_pr) unless the user explicitly asks for one. Just make the file changes.
 ${context?.repo ? `\n## Repository: ${context.repo} (branch: ${context.branch || 'main'})` : '\n## Note: No repo connected. Connect GitHub to use file operations.'}
 
 ## How to Respond
