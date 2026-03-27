@@ -38,6 +38,7 @@
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4"
 		on:click={handleBackdrop}
+		on:keydown={handleKeydown}
 		role="dialog"
 		aria-modal="true"
 		transition:fade={{ duration: 200, easing: cubicOut }}

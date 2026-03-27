@@ -333,9 +333,10 @@
 			<div style="height: 1px; background-color: var(--border)"></div>
 
 			<div class="py-1">
-				<label class="text-sm block mb-2" style="color: var(--content-secondary)">Sandbox timeout</label>
+				<label for="sandbox-timeout" class="text-sm block mb-2" style="color: var(--content-secondary)">Sandbox timeout</label>
 				<div class="flex items-center gap-3">
 					<input
+						id="sandbox-timeout"
 						type="number"
 						value={$settings.agent.sandboxTimeout / 1000}
 						on:change={(e) => { saveSettings({ agent: { ...$settings.agent, sandboxTimeout: parseInt(e.currentTarget.value) * 1000 } }); }}
