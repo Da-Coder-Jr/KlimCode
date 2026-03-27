@@ -29,6 +29,55 @@
 	// Build interleaved segments: [{type: 'text', html}, {type: 'steps', steps}]
 	$: segments = buildSegments(message.content, activeSteps, renderedContent);
 
+	/**
+	 * Find a safe split point near `offset` that doesn't break markdown structures.
+	 * Looks for a double-newline (paragraph break) near the offset.
+	 * Never splits inside a fenced code block.
+	 */
+	function findSafeSplitPoint(content: string, offset: number): number {
+		if (offset <= 0) return 0;
+		if (offset >= content.length) return content.length;
+
+		// Check if we're inside a fenced code block at this offset
+		const before = content.slice(0, offset);
+		const fenceCount = (before.match(/^```/gm) || []).length;
+		const insideCodeBlock = fenceCount % 2 === 1;
+
+		if (insideCodeBlock) {
+			// Find the closing ``` after the offset
+			const closingFence = content.indexOf('\n```', offset);
+			if (closingFence !== -1) {
+				// Split after the closing fence line
+				const afterFence = content.indexOf('\n', closingFence + 4);
+				return afterFence !== -1 ? afterFence + 1 : closingFence + 4;
+			}
+			// No closing fence found — don't split here
+			return content.length;
+		}
+
+		// Look for a double-newline (paragraph boundary) near the offset
+		// Search backwards first (within 200 chars)
+		const searchStart = Math.max(0, offset - 200);
+		const searchRegion = content.slice(searchStart, offset);
+		const lastParaBreak = searchRegion.lastIndexOf('\n\n');
+		if (lastParaBreak !== -1) {
+			return searchStart + lastParaBreak + 2;
+		}
+
+		// Search forwards (within 200 chars)
+		const forwardRegion = content.slice(offset, offset + 200);
+		const nextParaBreak = forwardRegion.indexOf('\n\n');
+		if (nextParaBreak !== -1) {
+			return offset + nextParaBreak + 2;
+		}
+
+		// Fallback: split at a newline near the offset
+		const lastNewline = content.lastIndexOf('\n', offset);
+		if (lastNewline > 0) return lastNewline + 1;
+
+		return offset;
+	}
+
 	function buildSegments(content: string, steps: AgentStep[], rendered: string): Array<{type: 'text', html: string} | {type: 'steps', steps: AgentStep[]}> {
 		if (!steps || steps.length === 0 || !content) {
 			return [{ type: 'text', html: rendered }];
@@ -60,13 +109,14 @@
 
 		let lastOffset = 0;
 		for (const offset of offsets) {
-			// Render the text segment before this offset
-			const textSlice = content.slice(lastOffset, offset);
+			// Find a safe split point that doesn't break markdown
+			const safeOffset = findSafeSplitPoint(content, offset);
+			const textSlice = content.slice(lastOffset, safeOffset);
 			if (textSlice.trim()) {
 				result.push({ type: 'text', html: renderMarkdown(textSlice) });
 			}
 			result.push({ type: 'steps', steps: offsetGroups.get(offset)! });
-			lastOffset = offset;
+			lastOffset = safeOffset;
 		}
 
 		// Render remaining text after last offset

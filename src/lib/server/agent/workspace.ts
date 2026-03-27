@@ -23,6 +23,8 @@ export class Workspace {
 	fileCache: Map<string, string> = new Map();
 	commands: Array<{ command: string; output: string; exitCode: number }> = [];
 
+	private _defaultBranchResolved = false;
+
 	constructor(
 		repoOwner: string,
 		repoName: string,
@@ -34,6 +36,27 @@ export class Workspace {
 		this.githubToken = githubToken;
 		this.baseBranch = baseBranch;
 		this.branch = baseBranch;
+	}
+
+	/** Auto-detect the repo's default branch from GitHub API */
+	async resolveDefaultBranch(): Promise<void> {
+		if (this._defaultBranchResolved) return;
+		try {
+			const res = await fetch(
+				`https://api.github.com/repos/${this.repoOwner}/${this.repoName}`,
+				{ headers: this.githubHeaders() }
+			);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.default_branch) {
+					this.baseBranch = data.default_branch;
+					this.branch = data.default_branch;
+				}
+			}
+		} catch {
+			// Keep the provided baseBranch as fallback
+		}
+		this._defaultBranchResolved = true;
 	}
 
 	async readFile(path: string): Promise<string> {
@@ -106,6 +129,7 @@ export class Workspace {
 	}
 
 	async searchFiles(pattern: string, searchType: 'filename' | 'content'): Promise<string[]> {
+		await this.resolveDefaultBranch();
 		if (searchType === 'content') {
 			// Use GitHub search API
 			const response = await fetch(
@@ -157,6 +181,7 @@ export class Workspace {
 	}
 
 	async listFiles(directory = ''): Promise<string[]> {
+		await this.resolveDefaultBranch();
 		const response = await fetch(
 			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/trees/${this.baseBranch}?recursive=1`,
 			{
@@ -219,13 +244,19 @@ export class Workspace {
 		body: string,
 		branchName: string
 	): Promise<{ number: number; url: string }> {
+		// Auto-detect the default branch if not already resolved
+		await this.resolveDefaultBranch();
+
 		// 1. Get the base branch SHA
 		const baseRef = await fetch(
 			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/ref/heads/${this.baseBranch}`,
 			{ headers: this.githubHeaders() }
 		);
 
-		if (!baseRef.ok) throw new WorkspaceError('Failed to get base branch');
+		if (!baseRef.ok) {
+			const errBody = await baseRef.text().catch(() => '');
+			throw new WorkspaceError(`Failed to get base branch '${this.baseBranch}' (HTTP ${baseRef.status}): ${errBody}`);
+		}
 		const baseData = await baseRef.json();
 		const baseSha = baseData.object.sha;
 

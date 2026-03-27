@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { AgentStep } from '$types/core';
-	import { slide } from 'svelte/transition';
 
 	export let step: AgentStep;
 
@@ -111,10 +110,10 @@
 	$: truncatedPreview = previewContent.length > 2000 ? previewContent.slice(0, 2000) + '\n...' : previewContent;
 </script>
 
-<div class="my-1" transition:slide={{ duration: 200 }}>
+<div class="my-1">
 	<button
 		on:click={toggle}
-		class="flex items-center gap-2 py-1 px-0 w-full text-left rounded-md transition-colors"
+		class="flex items-center gap-1.5 py-1 px-0 text-left rounded-md transition-colors"
 		class:cursor-pointer={hasDetails}
 		class:cursor-default={!hasDetails}
 	>
@@ -130,7 +129,7 @@
 
 		<!-- Status text -->
 		<span
-			class="text-[13px] font-medium flex-1 shimmer-text"
+			class="text-[13px] font-medium shimmer-text"
 			class:shimmer-active={isActive}
 			class:shimmer-done={step.status === 'completed'}
 			class:shimmer-failed={step.status === 'failed'}
@@ -153,7 +152,7 @@
 
 	<!-- Expandable details -->
 	{#if expanded && hasDetails}
-		<div class="mt-1 ml-5.5 rounded-lg overflow-hidden" transition:slide={{ duration: 200 }} style="border: 1px solid var(--code-border)">
+		<div class="mt-1 ml-5.5 rounded-lg overflow-hidden" style="border: 1px solid var(--code-border)">
 			{#if filePath}
 				<div class="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between" style="background-color: var(--code-header); border-bottom: 1px solid var(--code-border); color: var(--content-muted)">
 					<span>{filePath}</span>
