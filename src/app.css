@@ -283,7 +283,7 @@
 		border: 1px solid var(--code-border);
 	}
 
-	.prose-chat pre {
+	.prose-chat pre:not(.code-block) {
 		@apply rounded-xl p-4 overflow-x-auto mb-4;
 		background-color: var(--code-bg);
 		border: 1px solid var(--code-border);
@@ -393,8 +393,7 @@
 	padding: 0.5rem 0.75rem;
 	background: var(--code-header);
 	border-bottom: 1px solid var(--code-border);
-	position: sticky;
-	top: 0;
+	position: relative;
 	z-index: 1;
 }
 

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { isStreaming, inputMessage, stopStreaming } from '$stores/chat';
+	import { isStreaming, inputMessage, stopStreaming, activeConversation } from '$stores/chat';
+	import { githubConnected, githubRepos, selectedRepo, selectRepo, loadRepos, reposLoading } from '$stores/github';
+	import type { GitHubRepo } from '$types/core';
 
 	const dispatch = createEventDispatcher();
 
@@ -112,6 +114,26 @@
 		textarea?.focus();
 	}
 
+	let repoDropdownOpen = false;
+	let repoSearchQuery = '';
+
+	$: filteredRepos = $githubRepos.filter((r: GitHubRepo) =>
+		r.fullName.toLowerCase().includes(repoSearchQuery.toLowerCase())
+	);
+
+	function handleRepoSelect(repo: GitHubRepo) {
+		selectRepo(repo);
+		repoDropdownOpen = false;
+		repoSearchQuery = '';
+	}
+
+	function toggleRepoDropdown() {
+		if ($githubRepos.length === 0) loadRepos();
+		repoDropdownOpen = !repoDropdownOpen;
+	}
+
+	$: showRepoSelector = $activeConversation?.mode === 'agent' && $githubConnected;
+
 	onMount(() => {
 		if ($inputMessage.trim()) {
 			setTimeout(() => {
@@ -219,6 +241,70 @@
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
 							</svg>
 						</button>
+
+						<!-- Repo selector (agent mode only) -->
+						{#if showRepoSelector}
+							<div class="relative">
+								<button
+									type="button"
+									on:click={toggleRepoDropdown}
+									class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-all btn-icon"
+									style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)"
+									title="Select repository"
+									disabled={$isStreaming}
+								>
+									<svg class="w-3.5 h-3.5 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+									</svg>
+									<span class="truncate max-w-[120px]">{$selectedRepo ? $selectedRepo.fullName.split('/')[1] : 'Pick repo'}</span>
+									<svg class="w-3 h-3 flex-shrink-0 transition-transform {repoDropdownOpen ? 'rotate-180' : ''}" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									</svg>
+								</button>
+
+								{#if repoDropdownOpen}
+									<button class="fixed inset-0 z-40" on:click={() => { repoDropdownOpen = false; repoSearchQuery = ''; }} aria-label="Close" type="button"></button>
+									<div class="absolute bottom-full mb-1.5 left-0 w-64 rounded-xl shadow-elevated z-50 overflow-hidden animate-slide-up" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
+										<div class="p-2" style="border-bottom: 1px solid var(--border)">
+											<input
+												bind:value={repoSearchQuery}
+												placeholder="Search repositories..."
+												class="w-full rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+												style="background-color: var(--surface-tertiary); color: var(--content-secondary); border: 1px solid transparent"
+												autofocus
+											/>
+										</div>
+										<div class="overflow-y-auto max-h-52">
+											{#if $reposLoading}
+												<div class="text-center py-3 text-xs" style="color: var(--content-muted)">Loading...</div>
+											{:else if filteredRepos.length === 0}
+												<div class="text-center py-3 text-xs" style="color: var(--content-muted)">No repositories found</div>
+											{:else}
+												{#each filteredRepos as repo}
+													<button
+														type="button"
+														on:click={() => handleRepoSelect(repo)}
+														class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all duration-100 hover:bg-[var(--surface-hover)]"
+													>
+														<svg class="w-3.5 h-3.5 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+														</svg>
+														<div class="flex-1 min-w-0">
+															<div class="text-xs truncate" style="color: var(--content-secondary)">{repo.fullName}</div>
+														</div>
+														{#if $selectedRepo?.fullName === repo.fullName}
+															<svg class="w-3 h-3 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+															</svg>
+														{/if}
+													</button>
+												{/each}
+											{/if}
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/if}
 					</div>
 
 					<div class="flex items-center gap-1.5">
