@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { isStreaming, inputMessage, stopStreaming } from '$stores/chat';
+	import { isStreaming, inputMessage, stopStreaming, activeConversation } from '$stores/chat';
+	import { githubConnected, selectedRepo } from '$stores/github';
+	import RepoSelector from '$components/github/RepoSelector.svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -123,6 +125,25 @@
 
 <div class="flex-shrink-0 px-3 sm:px-4 pb-3 sm:pb-4 pt-2" style="background-color: var(--surface)">
 	<div class="max-w-3xl xl:max-w-4xl mx-auto">
+		<!-- Agent mode repo selector -->
+		{#if $activeConversation?.mode === 'agent' && !$selectedRepo && $githubConnected}
+			<div class="mb-2">
+				<RepoSelector />
+			</div>
+		{:else if $activeConversation?.mode === 'agent' && $selectedRepo}
+			<div class="flex items-center gap-2 mb-2 px-1">
+				<svg class="w-3.5 h-3.5 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+				</svg>
+				<span class="text-xs font-medium" style="color: var(--content-tertiary)">{$selectedRepo.fullName}</span>
+				<button
+					on:click={() => { import('$stores/github').then(m => m.selectedRepo.set(null)); }}
+					class="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+					style="color: var(--content-muted); background-color: var(--surface-tertiary)"
+				>Change</button>
+			</div>
+		{/if}
+
 		<!-- Generating indicator bar - prominent, above the input -->
 		{#if $isStreaming}
 			<div class="flex items-center justify-center gap-3 mb-2 py-2">

@@ -113,7 +113,7 @@
 <div class="my-1">
 	<button
 		on:click={toggle}
-		class="flex items-center gap-1.5 py-1 px-0 text-left rounded-md transition-colors"
+		class="inline-flex items-center gap-0.5 py-1 px-0 text-left rounded-md transition-colors"
 		class:cursor-pointer={hasDetails}
 		class:cursor-default={!hasDetails}
 	>

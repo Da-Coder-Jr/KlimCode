@@ -228,25 +228,39 @@ function buildAPIMessages(
 }
 
 /**
- * Parse tool calls that some models output as raw JSON text instead of using the API.
- * Handles formats like: {"name": "read_file", "parameters": {"path": "..."}}
- * and: {"type": "function", "name": "...", "parameters": {...}}
+ * Known tools and their parameter names (in order) for function-call-syntax parsing.
+ */
+const TOOL_PARAM_MAP: Record<string, string[]> = {
+	read_file: ['path'],
+	write_file: ['path', 'content'],
+	edit_file: ['path', 'old_text', 'new_text'],
+	search_files: ['pattern', 'search_type', 'directory'],
+	list_files: ['directory'],
+	create_pr: ['title', 'body', 'branch']
+};
+
+/**
+ * Parse tool calls that some models output as raw text instead of using the API.
+ * Handles multiple formats:
+ * 1. JSON: {"name": "read_file", "parameters": {"path": "..."}}
+ * 2. Function-call syntax: read_file("path/to/file")
+ * 3. Function-call syntax: search_files("pattern", "content")
  */
 function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
 	const toolCalls: ToolCall[] = [];
 	let cleanText = text;
+	const regions: Array<[number, number]> = [];
 
-	// Match JSON objects that look like tool calls on their own lines
+	// 1. Match JSON objects that look like tool calls
 	const jsonToolPattern = /\n?\s*\{[\s]*"(?:type"\s*:\s*"function"\s*,\s*")?name"\s*:\s*"(\w+)"\s*,\s*"parameters"\s*:\s*(\{[^}]*(?:\{[^}]*\}[^}]*)?\})\s*\}\s*\n?/g;
 	let match: RegExpExecArray | null;
-	const regions: Array<[number, number]> = [];
 
 	while ((match = jsonToolPattern.exec(text)) !== null) {
 		const toolName = match[1];
 		const argsStr = match[2];
 
 		try {
-			JSON.parse(argsStr); // validate it's valid JSON
+			JSON.parse(argsStr);
 			toolCalls.push({
 				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 				type: 'function',
@@ -255,6 +269,85 @@ function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolC
 			regions.push([match.index, match.index + match[0].length]);
 		} catch {
 			// Not valid JSON, skip
+		}
+	}
+
+	// 2. Match function-call syntax: tool_name("arg1", "arg2")
+	// Only if no JSON tool calls were found
+	if (toolCalls.length === 0) {
+		const toolNames = Object.keys(TOOL_PARAM_MAP).join('|');
+		// Match tool_name( followed by arguments and closing )
+		// Arguments can be quoted strings with escaped quotes, or empty string ""
+		const funcCallPattern = new RegExp(
+			`(?:^|\\n)\\s*(${toolNames})\\(([\\s\\S]*?)\\)\\s*(?:\\n|$)`,
+			'gm'
+		);
+
+		while ((match = funcCallPattern.exec(text)) !== null) {
+			const toolName = match[1];
+			const rawArgs = match[2].trim();
+			const paramNames = TOOL_PARAM_MAP[toolName];
+			if (!paramNames) continue;
+
+			// Parse the argument values — handle quoted strings with possible newlines/escapes
+			const argValues: string[] = [];
+			let remaining = rawArgs;
+
+			while (remaining.length > 0) {
+				remaining = remaining.trimStart();
+				if (remaining.startsWith(',')) {
+					remaining = remaining.slice(1).trimStart();
+				}
+				if (remaining.length === 0) break;
+
+				if (remaining.startsWith('"')) {
+					// Find closing quote (handle escaped quotes)
+					let i = 1;
+					let value = '';
+					while (i < remaining.length) {
+						if (remaining[i] === '\\' && i + 1 < remaining.length) {
+							// Handle escape sequences
+							const next = remaining[i + 1];
+							if (next === 'n') value += '\n';
+							else if (next === 't') value += '\t';
+							else if (next === '\\') value += '\\';
+							else if (next === '"') value += '"';
+							else value += next;
+							i += 2;
+						} else if (remaining[i] === '"') {
+							break;
+						} else {
+							value += remaining[i];
+							i++;
+						}
+					}
+					argValues.push(value);
+					remaining = remaining.slice(i + 1);
+				} else {
+					// Unquoted value — take until comma or end
+					const commaIdx = remaining.indexOf(',');
+					if (commaIdx >= 0) {
+						argValues.push(remaining.slice(0, commaIdx).trim());
+						remaining = remaining.slice(commaIdx + 1);
+					} else {
+						argValues.push(remaining.trim());
+						remaining = '';
+					}
+				}
+			}
+
+			// Build args object mapping positional values to named params
+			const args: Record<string, string> = {};
+			for (let i = 0; i < Math.min(argValues.length, paramNames.length); i++) {
+				args[paramNames[i]] = argValues[i];
+			}
+
+			toolCalls.push({
+				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				type: 'function',
+				function: { name: toolName, arguments: JSON.stringify(args) }
+			});
+			regions.push([match.index, match.index + match[0].length]);
 		}
 	}
 

@@ -19,8 +19,7 @@ export function stopStreaming(): void {
 		currentAbortController.abort();
 		currentAbortController = null;
 	}
-	isStreaming.set(false);
-	streamingContent.set('');
+	// Don't clear streamingContent here — let sendMessage handle saving the partial content
 }
 
 export const activeConversation = derived(
@@ -347,7 +346,23 @@ export async function sendMessage(content: string): Promise<void> {
 		}
 	} catch (err) {
 		if (err instanceof DOMException && err.name === 'AbortError') {
-			// User cancelled - not an error
+			// User cancelled — save partial content so it doesn't disappear
+			const partialContent = get(streamingContent);
+			if (partialContent) {
+				const partialMsg: Message = {
+					id: crypto.randomUUID(),
+					conversationId: convId,
+					role: 'assistant',
+					content: partialContent,
+					model: conv.model,
+					createdAt: new Date().toISOString(),
+					metadata: {
+						agentSteps: get(agentSteps),
+						stopped: true
+					}
+				};
+				messages.update((msgs) => [...msgs, partialMsg]);
+			}
 		} else {
 			error.set(err instanceof Error ? err.message : 'Failed to send message');
 		}
