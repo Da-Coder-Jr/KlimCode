@@ -80,6 +80,8 @@ export interface AgentStep {
 	error?: string;
 	startedAt?: string;
 	completedAt?: string;
+	contentOffset?: number;
+	toolArgs?: string;
 }
 
 export type AgentStepType =

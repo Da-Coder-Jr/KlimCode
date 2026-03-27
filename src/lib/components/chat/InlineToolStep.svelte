@@ -4,6 +4,12 @@
 
 	export let step: AgentStep;
 
+	let expanded = false;
+
+	function toggle() {
+		if (hasDetails) expanded = !expanded;
+	}
+
 	function getStepIcon(type: string): string {
 		const icons: Record<string, string> = {
 			think: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
@@ -62,31 +68,110 @@
 		return desc;
 	}
 
+	function getFileContent(): string | null {
+		if (!step.toolArgs) return null;
+		try {
+			const args = JSON.parse(step.toolArgs);
+			if (step.type === 'write_file' && args.content) return args.content;
+			return null;
+		} catch {
+			return null;
+		}
+	}
+
+	function getFilePath(): string | null {
+		if (!step.toolArgs) return null;
+		try {
+			const args = JSON.parse(step.toolArgs);
+			return args.path || null;
+		} catch {
+			return null;
+		}
+	}
+
+	function getLanguage(path: string): string {
+		const ext = path.split('.').pop()?.toLowerCase() || '';
+		const map: Record<string, string> = {
+			js: 'javascript', ts: 'typescript', py: 'python', rb: 'ruby',
+			go: 'go', rs: 'rust', java: 'java', cpp: 'cpp', c: 'c',
+			html: 'html', css: 'css', json: 'json', md: 'markdown',
+			yml: 'yaml', yaml: 'yaml', toml: 'toml', xml: 'xml',
+			sql: 'sql', sh: 'bash', bash: 'bash', svelte: 'svelte',
+			tsx: 'tsx', jsx: 'jsx', vue: 'vue'
+		};
+		return map[ext] || 'text';
+	}
+
 	$: statusText = getStatusText(step);
 	$: isActive = step.status === 'running' || step.status === 'pending';
+	$: fileContent = getFileContent();
+	$: filePath = getFilePath();
+	$: hasDetails = (step.status !== 'running') && (fileContent || step.result || step.error);
+	$: previewContent = fileContent || step.result || step.error || '';
+	$: truncatedPreview = previewContent.length > 2000 ? previewContent.slice(0, 2000) + '\n...' : previewContent;
 </script>
 
-<div class="flex items-center gap-2 py-0.5" transition:slide={{ duration: 200 }}>
-	<svg
-		class="w-3.5 h-3.5 flex-shrink-0"
-		class:animate-pulse={step.status === 'running'}
-		style="color: {step.status === 'running' ? '#f59e0b' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
-		fill="none" stroke="currentColor" viewBox="0 0 24 24"
+<div class="my-1" transition:slide={{ duration: 200 }}>
+	<button
+		on:click={toggle}
+		class="flex items-center gap-2 py-1 px-0 w-full text-left rounded-md transition-colors"
+		class:cursor-pointer={hasDetails}
+		class:cursor-default={!hasDetails}
 	>
-		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
-	</svg>
+		<!-- Status icon -->
+		<svg
+			class="w-3.5 h-3.5 flex-shrink-0"
+			class:animate-pulse={step.status === 'running'}
+			style="color: {step.status === 'running' ? '#f59e0b' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
+			fill="none" stroke="currentColor" viewBox="0 0 24 24"
+		>
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
+		</svg>
 
-	<span
-		class="text-[13px] font-medium shimmer-text"
-		class:shimmer-active={isActive}
-		class:shimmer-done={step.status === 'completed'}
-		class:shimmer-failed={step.status === 'failed'}
-	>
-		{statusText}
-	</span>
+		<!-- Status text -->
+		<span
+			class="text-[13px] font-medium flex-1 shimmer-text"
+			class:shimmer-active={isActive}
+			class:shimmer-done={step.status === 'completed'}
+			class:shimmer-failed={step.status === 'failed'}
+		>
+			{statusText}
+		</span>
+
+		<!-- Expand chevron -->
+		{#if hasDetails}
+			<svg
+				class="w-3 h-3 flex-shrink-0 transition-transform duration-200"
+				class:rotate-90={expanded}
+				style="color: var(--content-muted)"
+				fill="none" stroke="currentColor" viewBox="0 0 24 24"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+			</svg>
+		{/if}
+	</button>
+
+	<!-- Expandable details -->
+	{#if expanded && hasDetails}
+		<div class="mt-1 ml-5.5 rounded-lg overflow-hidden" transition:slide={{ duration: 200 }} style="border: 1px solid var(--code-border)">
+			{#if filePath}
+				<div class="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between" style="background-color: var(--code-header); border-bottom: 1px solid var(--code-border); color: var(--content-muted)">
+					<span>{filePath}</span>
+					{#if fileContent}
+						<span class="text-[10px]" style="color: var(--content-muted)">{getLanguage(filePath)}</span>
+					{/if}
+				</div>
+			{/if}
+			<pre class="p-3 text-[12px] leading-relaxed overflow-x-auto max-h-[300px] overflow-y-auto" style="background-color: var(--code-bg); color: var(--code-text); margin: 0"><code>{truncatedPreview}</code></pre>
+		</div>
+	{/if}
 </div>
 
 <style>
+	.ml-5\.5 {
+		margin-left: 1.375rem;
+	}
+
 	.shimmer-text {
 		background-clip: text;
 		-webkit-background-clip: text;

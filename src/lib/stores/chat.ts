@@ -286,13 +286,22 @@ export async function sendMessage(content: string): Promise<void> {
 							break;
 						case 'agent_step':
 							if (chunk.agentStep) {
+								const step = chunk.agentStep;
+								// Record where in the text this step started
+								if (step.status === 'running' && step.contentOffset === undefined) {
+									step.contentOffset = fullContent.length;
+								}
 								agentSteps.update((steps) => {
-									const idx = steps.findIndex((s) => s.id === chunk.agentStep!.id);
+									const idx = steps.findIndex((s) => s.id === step.id);
 									if (idx >= 0) {
-										steps[idx] = chunk.agentStep!;
+										// Preserve contentOffset from the original
+										if (step.contentOffset === undefined && steps[idx].contentOffset !== undefined) {
+											step.contentOffset = steps[idx].contentOffset;
+										}
+										steps[idx] = step;
 										return [...steps];
 									}
-									return [...steps, chunk.agentStep!];
+									return [...steps, step];
 								});
 							}
 							break;
