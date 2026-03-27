@@ -4,7 +4,8 @@ import {
 	callNvidiaNonStreaming,
 	streamNvidiaResponse,
 	buildSystemPrompt,
-	getAgentTools
+	getAgentTools,
+	getModelById
 } from '$server/ai/nvidia';
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
@@ -48,10 +49,13 @@ export async function* executeAgent(
 		branch: baseBranch
 	});
 
+	const modelDef = getModelById(model);
+	const modelSupportsTools = modelDef?.supportsTools !== false;
+
 	const apiMessages = buildAPIMessages(systemPrompt, messages);
 	const tools = getAgentTools();
 
-	const toolContext: ToolExecutionContext | undefined = workspace
+	const toolContext: ToolExecutionContext | undefined = (workspace && modelSupportsTools)
 		? { workspace }
 		: undefined;
 

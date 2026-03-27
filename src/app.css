@@ -276,7 +276,8 @@
 		@apply mb-3 last:mb-0;
 	}
 
-	.prose-chat code {
+	/* Only apply inline-code styles to code NOT inside a pre or code-block-wrapper */
+	.prose-chat :not(pre) > code:not(.hljs) {
 		@apply px-[0.4em] py-[0.2em] rounded-md text-[85%] font-mono;
 		background-color: var(--code-bg);
 		color: var(--content);

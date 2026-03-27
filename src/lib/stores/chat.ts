@@ -20,7 +20,8 @@ export function stopStreaming(): void {
 		currentAbortController = null;
 	}
 	isStreaming.set(false);
-	streamingContent.set('');
+	// Don't clear streamingContent here — the finally block in sendMessage will do it
+	// after saving the partial response as an assistant message
 }
 
 export const activeConversation = derived(
@@ -224,6 +225,8 @@ export async function sendMessage(content: string): Promise<void> {
 	agentSteps.set([]);
 	error.set(null);
 
+	let fullContent = '';
+
 	try {
 		currentAbortController = new AbortController();
 		const endpoint = conv.mode === 'agent' ? '/api/agent' : '/api/chat';
@@ -256,7 +259,6 @@ export async function sendMessage(content: string): Promise<void> {
 		const reader = res.body.getReader();
 		const decoder = new TextDecoder();
 		let buffer = '';
-		let fullContent = '';
 
 		while (true) {
 			const { done, value } = await reader.read();
@@ -347,7 +349,21 @@ export async function sendMessage(content: string): Promise<void> {
 		}
 	} catch (err) {
 		if (err instanceof DOMException && err.name === 'AbortError') {
-			// User cancelled - not an error
+			// User stopped generation — save whatever was received so far
+			if (fullContent) {
+				const assistantMsg: Message = {
+					id: crypto.randomUUID(),
+					conversationId: convId,
+					role: 'assistant',
+					content: fullContent,
+					model: conv.model,
+					createdAt: new Date().toISOString(),
+					metadata: {
+						agentSteps: get(agentSteps)
+					}
+				};
+				messages.update((msgs) => [...msgs, assistantMsg]);
+			}
 		} else {
 			error.set(err instanceof Error ? err.message : 'Failed to send message');
 		}
