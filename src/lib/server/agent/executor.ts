@@ -10,8 +10,8 @@ import {
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
-// No hard limit — the model decides when to stop calling tools
-const MAX_TOOL_ROUNDS = Infinity;
+// Safety cap — prevents runaway loops where a model keeps calling tools forever
+const MAX_TOOL_ROUNDS = 20;
 
 interface AgentExecutionOptions {
 	apiKey: string;
@@ -55,7 +55,9 @@ export async function* executeAgent(
 	const apiMessages = buildAPIMessages(systemPrompt, messages);
 	const tools = getAgentTools();
 
-	const toolContext: ToolExecutionContext | undefined = (workspace && modelSupportsTools)
+	// Always provide a tool context — web_search works without a workspace.
+	// Repo tools will self-report an error if workspace is missing.
+	const toolContext: ToolExecutionContext | undefined = modelSupportsTools
 		? { workspace }
 		: undefined;
 

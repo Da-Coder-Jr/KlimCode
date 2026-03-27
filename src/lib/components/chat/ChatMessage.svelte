@@ -313,11 +313,6 @@
 						</button>
 					{/if}
 
-					{#if message.tokens && isAssistant}
-						<span class="text-[10px] ml-1.5 font-mono" style="color: var(--content-muted)">
-							{(message.tokens.prompt || 0) + (message.tokens.completion || 0)} tokens
-						</span>
-					{/if}
 				</div>
 			{/if}
 		</div>

@@ -310,21 +310,23 @@ You have these tools available through the function calling API:
 - search_files(pattern, search_type, directory?) — Search by filename or content. Use search_type="filename" with pattern="." to list files (not "*").
 - list_files(directory?) — List files in a directory. Use list_files("") for root.
 - create_pr(title, body, branch) — Create a GitHub PR
+- web_search(query) — Search the web via DuckDuckGo (no API key needed)
 
-## Rules
-1. Call tools ONLY via the function calling API. Do NOT write JSON tool calls in your text response — the user sees that as garbage.
-2. Only use the tools listed above. Do NOT call run_command or any other tool.
-3. Always read_file before edit_file to get the exact text.
-4. When edit_file fails, use write_file to rewrite the whole file.
-5. Make minimal targeted changes.
-6. After all file changes are complete, create a pull request (create_pr) with a summary of what you did. Only create the PR as the LAST step after all other work is done.
+## CRITICAL Rules
+1. USE TOOLS. Do not describe what you would do — just do it by calling the tool.
+2. Call tools ONLY via the function calling API. NEVER output raw JSON in your text.
+3. NEVER say "Let me check..." and then not call a tool. Actually call the tool immediately.
+4. Always read_file before edit_file to get the exact text.
+5. When edit_file fails, use write_file to rewrite the whole file.
+6. After all file changes are complete, create a pull request (create_pr). Only create the PR as the LAST step.
 ${context?.repo ? `\n## Repository: ${context.repo} (branch: ${context.branch || 'main'})` : '\n## Note: No repo connected. Connect GitHub to use file operations.'}
 
 ## How to Respond
-1. First write a brief acknowledgement (e.g. "I'll look into that." or "Let me fix that.").
-2. Then use tools as needed.
-3. After tools complete, summarize what you did.
-4. IMPORTANT: Never output raw JSON like {"name":"...", "parameters":{...}} — always use the API tool calling mechanism.`;
+1. Write ONE brief sentence acknowledging the task (e.g. "On it." or "Let me fix that.").
+2. Immediately call the necessary tools — do not narrate what you are about to do.
+3. After all tools complete, write a short summary of what was done.
+4. NEVER output text like "Now let me check X" or "Let me look at Y" without immediately following it with a tool call in the same response.
+5. NEVER output raw JSON like {"name":"...", "parameters":{...}} in your text — use the API tool calling mechanism.`;
 }
 
 export function getAgentTools(): NvidiaTool[] {
@@ -461,6 +463,23 @@ export function getAgentTools(): NvidiaTool[] {
 						}
 					},
 					required: ['title', 'body', 'branch']
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'web_search',
+				description: 'Search the web using DuckDuckGo. No API key required. Use this to look up documentation, error messages, package info, or any other information from the web.',
+				parameters: {
+					type: 'object',
+					properties: {
+						query: {
+							type: 'string',
+							description: 'The search query'
+						}
+					},
+					required: ['query']
 				}
 			}
 		}

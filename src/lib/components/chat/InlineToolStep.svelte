@@ -1,9 +1,11 @@
 <script lang="ts">
 	import type { AgentStep } from '$types/core';
+	import hljs from 'highlight.js';
 
 	export let step: AgentStep;
 
 	let expanded = false;
+	let codeCopied = false;
 
 	function toggle() {
 		if (hasDetails) expanded = !expanded;
@@ -122,6 +124,23 @@
 		return map[ext] || 'text';
 	}
 
+	function highlightCode(code: string, lang: string): string {
+		try {
+			if (hljs.getLanguage(lang)) {
+				return hljs.highlight(code, { language: lang }).value;
+			}
+		} catch {
+			// fall through
+		}
+		return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	function copyCode() {
+		navigator.clipboard.writeText(previewContent);
+		codeCopied = true;
+		setTimeout(() => { codeCopied = false; }, 2000);
+	}
+
 	$: statusText = getStatusText(step);
 	$: isActive = step.status === 'running' || step.status === 'pending';
 	$: fileContent = getFileContent();
@@ -130,6 +149,8 @@
 	$: hasDetails = (step.status !== 'running') && (editDiff || fileContent || step.result || step.error);
 	$: previewContent = fileContent || step.result || step.error || '';
 	$: truncatedPreview = previewContent.length > 2000 ? previewContent.slice(0, 2000) + '\n...' : previewContent;
+	$: codeLanguage = filePath ? getLanguage(filePath) : 'text';
+	$: highlightedCode = highlightCode(truncatedPreview, codeLanguage);
 </script>
 
 <div class="my-1">
@@ -142,8 +163,8 @@
 		<!-- Status icon -->
 		<svg
 			class="w-3.5 h-3.5 flex-shrink-0"
-			class:animate-pulse={step.status === 'running'}
-			style="color: {step.status === 'running' ? '#f59e0b' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
+			class:spinning={step.status === 'running'}
+			style="color: {step.status === 'running' ? 'var(--content-muted)' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
 			fill="none" stroke="currentColor" viewBox="0 0 24 24"
 		>
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
@@ -175,12 +196,31 @@
 	<!-- Expandable details -->
 	{#if expanded && hasDetails}
 		<div class="mt-1 ml-5.5 rounded-lg overflow-hidden" style="border: 1px solid var(--code-border)">
-			{#if filePath}
-				<div class="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between" style="background-color: var(--code-header); border-bottom: 1px solid var(--code-border); color: var(--content-muted)">
-					<span>{filePath}</span>
-					<span class="text-[10px]" style="color: var(--content-muted)">{getLanguage(filePath)}</span>
+			<!-- Header: file path + copy button -->
+			<div class="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between" style="background-color: var(--code-header); border-bottom: 1px solid var(--code-border); color: var(--content-muted)">
+				<span>{filePath || (step.error ? 'error' : 'output')}</span>
+				<div class="flex items-center gap-2">
+					{#if filePath}
+						<span class="text-[10px]">{codeLanguage}</span>
+					{/if}
+					{#if !editDiff && previewContent}
+						<button
+							on:click|stopPropagation={copyCode}
+							class="code-copy-btn"
+							title="Copy"
+						>
+							{#if codeCopied}
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:middle;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+								<span>Copied!</span>
+							{:else}
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:3px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+								<span>Copy</span>
+							{/if}
+						</button>
+					{/if}
 				</div>
-			{/if}
+			</div>
+
 			{#if editDiff}
 				<!-- Diff view for edit_file -->
 				<div class="overflow-x-auto max-h-[300px] overflow-y-auto text-[12px] leading-relaxed font-mono" style="background-color: var(--code-bg); margin: 0">
@@ -195,7 +235,7 @@
 					{/each}
 				</div>
 			{:else}
-				<pre class="p-3 text-[12px] leading-relaxed overflow-x-auto max-h-[300px] overflow-y-auto" style="background-color: var(--code-bg); color: var(--code-text); margin: 0"><code>{truncatedPreview}</code></pre>
+				<pre class="p-3 text-[12px] leading-relaxed overflow-x-auto max-h-[300px] overflow-y-auto code-block" style="background-color: var(--code-bg); margin: 0"><code class="hljs language-{codeLanguage}">{@html highlightedCode}</code></pre>
 			{/if}
 		</div>
 	{/if}
@@ -242,5 +282,14 @@
 	@keyframes shimmer-settle {
 		0% { background-position: -200% 0; }
 		100% { background-position: 0% 0; }
+	}
+
+	.spinning {
+		animation: spin 1.5s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 </style>
