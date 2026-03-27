@@ -52,7 +52,7 @@ export async function executeToolCall(
 		return { toolCallId: toolCall.id, content: result };
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-		return { toolCallId: toolCall.id, content: `Error: ${errorMsg}`, isError: true };
+		return { toolCallId: toolCall.id, content: `ERROR: Tool '${funcName}' failed: ${errorMsg}`, isError: true };
 	}
 }
 
@@ -99,16 +99,12 @@ async function handleCreatePR(workspace: Workspace, args: Record<string, string>
 		return 'No files have been changed. Make some changes first before creating a PR.';
 	}
 
-	try {
-		const branchName = args.branch || `klimcode/${Date.now()}`;
-		const pr = await workspace.createPullRequest(
-			args.title,
-			args.body,
-			branchName
-		);
+	const branchName = args.branch || `klimcode/${Date.now()}`;
+	const pr = await workspace.createPullRequest(
+		args.title,
+		args.body,
+		branchName
+	);
 
-		return `PR #${pr.number} created!\nURL: ${pr.url}\nBranch: ${branchName}\nFiles changed: ${changes.map((f) => f.path).join(', ')}`;
-	} catch (error) {
-		return `Failed to create PR: ${error instanceof Error ? error.message : 'Unknown error'}`;
-	}
+	return `PR #${pr.number} created!\nURL: ${pr.url}\nBranch: ${branchName}\nFiles changed: ${changes.map((f) => f.path).join(', ')}`;
 }
