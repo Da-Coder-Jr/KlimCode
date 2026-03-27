@@ -247,11 +247,32 @@ export class Workspace {
 		// Auto-detect the default branch if not already resolved
 		await this.resolveDefaultBranch();
 
-		// 1. Get the base branch SHA
-		const baseRef = await fetch(
+		// 1. Get the base branch SHA (initialize repo first if empty)
+		let baseRef = await fetch(
 			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/ref/heads/${this.baseBranch}`,
 			{ headers: this.githubHeaders() }
 		);
+
+		if (!baseRef.ok && (baseRef.status === 404 || baseRef.status === 409)) {
+			// Repository is empty — seed it with an initial commit via the Contents API
+			await fetch(
+				`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/README.md`,
+				{
+					method: 'PUT',
+					headers: this.githubHeaders(),
+					body: JSON.stringify({
+						message: 'Initial commit',
+						content: Buffer.from(`# ${this.repoName}\n`).toString('base64'),
+						branch: this.baseBranch
+					})
+				}
+			);
+			// Re-fetch after initialization
+			baseRef = await fetch(
+				`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/git/ref/heads/${this.baseBranch}`,
+				{ headers: this.githubHeaders() }
+			);
+		}
 
 		if (!baseRef.ok) {
 			const errBody = await baseRef.text().catch(() => '');
