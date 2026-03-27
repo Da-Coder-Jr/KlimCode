@@ -78,6 +78,27 @@
 		}
 	}
 
+	interface DiffLine {
+		type: 'added' | 'removed' | 'context';
+		text: string;
+	}
+
+	function getEditDiff(): DiffLine[] | null {
+		if (step.type !== 'edit_file' || !step.toolArgs) return null;
+		try {
+			const args = JSON.parse(step.toolArgs);
+			if (!args.old_text && !args.new_text) return null;
+			const oldLines = (args.old_text || '').split('\n');
+			const newLines = (args.new_text || '').split('\n');
+			const result: DiffLine[] = [];
+			for (const line of oldLines) result.push({ type: 'removed', text: line });
+			for (const line of newLines) result.push({ type: 'added', text: line });
+			return result;
+		} catch {
+			return null;
+		}
+	}
+
 	function getFilePath(): string | null {
 		if (!step.toolArgs) return null;
 		try {
@@ -105,7 +126,8 @@
 	$: isActive = step.status === 'running' || step.status === 'pending';
 	$: fileContent = getFileContent();
 	$: filePath = getFilePath();
-	$: hasDetails = (step.status !== 'running') && (fileContent || step.result || step.error);
+	$: editDiff = getEditDiff();
+	$: hasDetails = (step.status !== 'running') && (editDiff || fileContent || step.result || step.error);
 	$: previewContent = fileContent || step.result || step.error || '';
 	$: truncatedPreview = previewContent.length > 2000 ? previewContent.slice(0, 2000) + '\n...' : previewContent;
 </script>
@@ -156,12 +178,25 @@
 			{#if filePath}
 				<div class="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between" style="background-color: var(--code-header); border-bottom: 1px solid var(--code-border); color: var(--content-muted)">
 					<span>{filePath}</span>
-					{#if fileContent}
-						<span class="text-[10px]" style="color: var(--content-muted)">{getLanguage(filePath)}</span>
-					{/if}
+					<span class="text-[10px]" style="color: var(--content-muted)">{getLanguage(filePath)}</span>
 				</div>
 			{/if}
-			<pre class="p-3 text-[12px] leading-relaxed overflow-x-auto max-h-[300px] overflow-y-auto" style="background-color: var(--code-bg); color: var(--code-text); margin: 0"><code>{truncatedPreview}</code></pre>
+			{#if editDiff}
+				<!-- Diff view for edit_file -->
+				<div class="overflow-x-auto max-h-[300px] overflow-y-auto text-[12px] leading-relaxed font-mono" style="background-color: var(--code-bg); margin: 0">
+					{#each editDiff as line}
+						<div
+							class="px-3 py-0 whitespace-pre flex items-start gap-2"
+							style="{line.type === 'removed' ? 'background-color: rgba(239,68,68,0.12); color: #ef4444;' : line.type === 'added' ? 'background-color: rgba(34,197,94,0.12); color: #22c55e;' : 'color: var(--code-text);'}"
+						>
+							<span class="select-none flex-shrink-0 w-3 text-center opacity-70">{line.type === 'removed' ? '-' : line.type === 'added' ? '+' : ' '}</span>
+							<span>{line.text}</span>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<pre class="p-3 text-[12px] leading-relaxed overflow-x-auto max-h-[300px] overflow-y-auto" style="background-color: var(--code-bg); color: var(--code-text); margin: 0"><code>{truncatedPreview}</code></pre>
+			{/if}
 		</div>
 	{/if}
 </div>
