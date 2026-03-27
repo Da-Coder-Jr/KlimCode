@@ -120,9 +120,6 @@
 							How can I help you today?
 						{/if}
 					</p>
-
-						</div>
-					{/if}
 				{:else}
 					<h2 class="text-xl font-semibold mb-2" style="color: var(--content)">How can I help?</h2>
 				{/if}

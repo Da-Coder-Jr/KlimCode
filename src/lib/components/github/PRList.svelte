@@ -101,7 +101,7 @@
 			</div>
 
 			<div>
-				<label class="text-sm block mb-2" style="color: var(--content-secondary)">Merge method</label>
+				<p class="text-sm block mb-2" style="color: var(--content-secondary)">Merge method</p>
 				<div class="space-y-2">
 					{#each [
 						{ value: 'squash', label: 'Squash and merge', desc: 'Combine all commits into one' },

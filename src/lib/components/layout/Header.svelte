@@ -4,8 +4,6 @@
 	import { githubConnected, githubRepos, selectedRepo, loadRepos, selectRepo } from '$stores/github';
 	import ModelSelector from '$components/chat/ModelSelector.svelte';
 
-	export let onToggleSidebar: () => void = () => {};
-
 	let modelSelectorOpen = false;
 	let repoSelectorOpen = false;
 	let reposLoaded = false;
