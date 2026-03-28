@@ -120,7 +120,15 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 
 		if (!res.ok) return `Search failed: HTTP ${res.status}`;
 
-		const data = await res.json();
+		const rawText = await res.text();
+		if (!rawText.trim()) return await webSearchFallback(query);
+
+		let data: Record<string, unknown>;
+		try {
+			data = JSON.parse(rawText);
+		} catch {
+			return await webSearchFallback(query);
+		}
 
 		const results: string[] = [];
 

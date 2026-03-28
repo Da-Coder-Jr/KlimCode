@@ -66,7 +66,8 @@
 		dispatch('regenerate', e.detail);
 	}
 
-	$: streamingMsg = $isStreaming && $streamingContent ? {
+	// Only show streaming content once there's actual visible text (not just whitespace/newlines)
+	$: streamingMsg = $isStreaming && $streamingContent?.trim() ? {
 		id: 'streaming',
 		conversationId: '',
 		role: 'assistant' as const,
@@ -74,8 +75,8 @@
 		createdAt: new Date().toISOString()
 	} : null;
 
-	// Show thinking state when streaming but no content yet
-	$: thinkingMsg = $isStreaming && !$streamingContent ? {
+	// Show thinking dots when streaming but no visible content yet
+	$: thinkingMsg = $isStreaming && !$streamingContent?.trim() ? {
 		id: 'thinking',
 		conversationId: '',
 		role: 'assistant' as const,
