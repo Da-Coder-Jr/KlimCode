@@ -58,8 +58,7 @@ export async function* executeAgent(
 	const apiMessages = buildAPIMessages(systemPrompt, messages);
 	const tools = getAgentTools();
 
-	// Always provide a tool context — web_search works without a workspace.
-	// Repo tools will self-report an error if workspace is missing.
+	// Repo tools self-report an error if workspace is missing.
 	const toolContext: ToolExecutionContext | undefined = modelSupportsTools
 		? { workspace }
 		: undefined;
@@ -218,26 +217,10 @@ export async function* executeChat(options: {
 	const systemPrompt = buildSystemPrompt('chat');
 	const apiMessages = buildAPIMessages(systemPrompt, options.messages);
 
-	const modelDef = getModelById(options.model);
-	const modelSupportsTools = modelDef?.supportsTools !== false;
-
-	// Give chat mode the web_search tool so the AI can look things up
-	const chatTools = modelSupportsTools
-		? [{ type: 'function' as const, function: {
-				name: 'web_search',
-				description: 'Search the web using DuckDuckGo. No API key required.',
-				parameters: {
-					type: 'object',
-					properties: { query: { type: 'string', description: 'The search query' } },
-					required: ['query']
-				}
-		  } }]
-		: undefined;
-
 	let currentMessages = [...apiMessages];
 
-	// Allow up to 5 search rounds so the AI can refine and follow up
-	for (let round = 0; round < 5; round++) {
+	// Single-pass — no tool loop needed now that web_search is removed
+	{
 		let fullContent = '';
 		let toolCalls: ToolCall[] = [];
 
@@ -246,8 +229,6 @@ export async function* executeChat(options: {
 				apiKey: options.apiKey,
 				model: options.model,
 				messages: currentMessages,
-				tools: chatTools,
-				toolChoice: chatTools ? 'auto' : undefined,
 				stream: true,
 				maxTokens: 4096
 			});
@@ -322,47 +303,8 @@ export async function* executeChat(options: {
 			return;
 		}
 
-		if (toolCalls.length === 0) {
-			yield { type: 'done' };
-			return;
-		}
-
-		// Execute web_search tool calls and feed results back
-		currentMessages.push({
-			role: 'assistant',
-			content: fullContent || '',
-			tool_calls: toolCalls.map((tc) => ({
-				id: tc.id, type: 'function' as const,
-				function: { name: tc.function.name, arguments: tc.function.arguments }
-			}))
-		});
-
-		for (const toolCall of toolCalls) {
-			if (toolCall.function.name !== 'web_search') continue;
-
-			// Emit a lightweight step so the user sees "Searching…"
-			const step: AgentStep = {
-				id: toolCall.id,
-				type: 'search_files',
-				status: 'running',
-				description: (() => {
-					try { return `Searching "${JSON.parse(toolCall.function.arguments).query}"`; }
-					catch { return 'Searching the web'; }
-				})(),
-				startedAt: new Date().toISOString(),
-				toolArgs: toolCall.function.arguments,
-				contentOffset: fullContent.length
-			};
-			yield { type: 'agent_step', agentStep: step };
-
-			const result = await executeToolCall(toolCall, {});
-			step.status = result.isError ? 'failed' : 'completed';
-			step.result = result.content;
-			step.completedAt = new Date().toISOString();
-			yield { type: 'agent_step', agentStep: step };
-
-			currentMessages.push({ role: 'tool', content: result.content, tool_call_id: toolCall.id });
-		}
+		// toolCalls is intentionally unused — chat mode has no tools
+		void toolCalls;
 	}
 
 	yield { type: 'done' };
@@ -388,7 +330,7 @@ function buildAPIMessages(
 
 const KNOWN_TOOLS = new Set([
 	'read_file', 'write_file', 'edit_file', 'search_files',
-	'list_files', 'create_pr', 'web_search'
+	'list_files', 'create_pr'
 ]);
 
 /**
@@ -546,8 +488,6 @@ export function parseTextToolCalls(text: string): { cleanText: string; toolCalls
 			inferredTool = 'write_file';
 		} else if (keys.has('path') && keys.has('old_text') && keys.has('new_text')) {
 			inferredTool = 'edit_file';
-		} else if (keys.has('query')) {
-			inferredTool = 'web_search';
 		}
 		if (inferredTool) {
 			toolCalls.push({
@@ -592,8 +532,7 @@ function buildStepDescription(toolName: string, argsJson: string): string {
 function mapToolToStep(toolName: string): AgentStep['type'] {
 	const map: Record<string, AgentStep['type']> = {
 		read_file: 'read_file', write_file: 'write_file', edit_file: 'edit_file',
-		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr',
-		web_search: 'search_files'
+		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr'
 	};
 	return map[toolName] || 'think';
 }

@@ -164,9 +164,11 @@
 		dispatch('regenerate', { messageId: message.id });
 	}
 
-	// Use event delegation so copy buttons work even after streaming updates
+	// Use event delegation so copy buttons and preview badges work after streaming updates
 	function handleMessageClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
+
+		// Copy button
 		const btn = target.closest('.code-copy-btn') as HTMLElement | null;
 		if (btn) {
 			e.preventDefault();
@@ -176,6 +178,42 @@
 			if (label) {
 				label.textContent = 'Copied!';
 				setTimeout(() => { if (label) label.textContent = 'Copy'; }, 2000);
+			}
+			return;
+		}
+
+		// HTML/SVG preview badge toggle
+		const badge = target.closest('.code-preview-badge') as HTMLElement | null;
+		if (badge) {
+			e.preventDefault();
+			const wrapper = badge.closest('.code-block-wrapper') as HTMLElement | null;
+			if (!wrapper) return;
+
+			const existing = wrapper.querySelector('.html-preview-frame') as HTMLElement | null;
+			if (existing) {
+				existing.remove();
+				badge.textContent = 'Preview';
+			} else {
+				const copyBtn = wrapper.querySelector('.code-copy-btn') as HTMLElement | null;
+				const html = copyBtn?.dataset.code ?? '';
+				const iframe = document.createElement('iframe');
+				iframe.className = 'html-preview-frame';
+				iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+				iframe.srcdoc = html;
+				iframe.style.cssText = [
+					'display:block', 'width:100%', 'min-height:320px', 'height:auto',
+					'border:none', 'border-top:1px solid var(--border)',
+					'border-radius:0 0 12px 12px', 'background:#fff'
+				].join(';');
+				// Auto-resize iframe to its content height
+				iframe.onload = () => {
+					try {
+						const h = iframe.contentDocument?.documentElement?.scrollHeight;
+						if (h) iframe.style.height = Math.min(Math.max(h, 120), 600) + 'px';
+					} catch { /* cross-origin */ }
+				};
+				wrapper.appendChild(iframe);
+				badge.textContent = 'Close preview';
 			}
 		}
 	}
