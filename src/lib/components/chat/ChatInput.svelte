@@ -132,7 +132,7 @@
 		repoDropdownOpen = !repoDropdownOpen;
 	}
 
-	$: showRepoSelector = $activeConversation?.mode === 'agent' && $githubConnected;
+	$: showRepoSelector = $githubConnected;
 
 	onMount(() => {
 		if ($inputMessage.trim()) {

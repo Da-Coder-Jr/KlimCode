@@ -2,7 +2,6 @@
 	import { afterUpdate, tick, onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import type { Message } from '$types/core';
 	import ChatMessage from './ChatMessage.svelte';
-	import ModelSelector from './ModelSelector.svelte';
 	import { isStreaming, streamingContent, inputMessage, agentSteps, activeConversation } from '$stores/chat';
 	import { fade } from 'svelte/transition';
 
@@ -14,7 +13,6 @@
 	let shouldAutoScroll = true;
 	let showScrollBtn = false;
 	let resizeObserver: ResizeObserver | null = null;
-	let modelSelectorOpen = false;
 
 	afterUpdate(async () => {
 		if (shouldAutoScroll && scrollContainer) {
@@ -98,32 +96,18 @@
 	class="flex-1 overflow-y-auto relative"
 >
 	{#if messages.length === 0 && !streamingMsg && !thinkingMsg}
-		<!-- Open WebUI-style empty state with prominent model selector -->
 		<div class="flex items-center justify-center h-full p-4">
 			<div class="text-center max-w-lg">
 				<div class="mb-4">
 					<img src="/favicon.svg" alt="KlimCode" class="w-12 h-12 mx-auto rounded-2xl shadow-soft" />
 				</div>
-
-				<!-- Prominent model selector like Open WebUI -->
-				{#if $activeConversation}
-					<div class="flex justify-center mb-2">
-						<ModelSelector
-							currentModel={$activeConversation.model}
-							bind:open={modelSelectorOpen}
-							variant="hero"
-						/>
-					</div>
-					<p class="text-[13px] mb-1" style="color: var(--content-muted)">
-						{#if $activeConversation.mode === 'agent'}
-							Agent mode — can read, write, and search files in your repo
-						{:else}
-							How can I help you today?
-						{/if}
-					</p>
-				{:else}
-					<h2 class="text-xl font-semibold mb-2" style="color: var(--content)">How can I help?</h2>
-				{/if}
+				<p class="text-[13px] mb-1" style="color: var(--content-muted)">
+					{#if $activeConversation?.mode === 'agent'}
+						Agent mode — can read, write, and search files in your repo
+					{:else}
+						How can I help you today?
+					{/if}
+				</p>
 
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6">
 					{#each quickSuggestions as suggestion}

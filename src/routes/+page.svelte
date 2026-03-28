@@ -267,8 +267,8 @@
 								Agent {agentMode ? 'On' : 'Off'}
 							</button>
 
-							<!-- Repo selector (agent mode only) -->
-							{#if agentMode && $githubConnected}
+							<!-- Repo selector (always shown when GitHub connected) -->
+							{#if $githubConnected}
 								<div class="relative">
 									<button
 										on:click={toggleRepoDropdown}

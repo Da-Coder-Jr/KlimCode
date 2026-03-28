@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AgentStep } from '$types/core';
 	import hljs from 'highlight.js';
+	import { diffLines } from 'diff';
 
 	export let step: AgentStep;
 
@@ -92,11 +93,14 @@
 		try {
 			const args = JSON.parse(step.toolArgs);
 			if (!args.old_text && !args.new_text) return null;
-			const oldLines = (args.old_text || '').split('\n');
-			const newLines = (args.new_text || '').split('\n');
+			const changes = diffLines(args.old_text || '', args.new_text || '');
 			const result: DiffLine[] = [];
-			for (const line of oldLines) result.push({ type: 'removed', text: line });
-			for (const line of newLines) result.push({ type: 'added', text: line });
+			for (const change of changes) {
+				const lines = change.value.split('\n');
+				if (lines[lines.length - 1] === '') lines.pop();
+				const type: DiffLine['type'] = change.added ? 'added' : change.removed ? 'removed' : 'context';
+				for (const line of lines) result.push({ type, text: line });
+			}
 			return result;
 		} catch {
 			return null;
@@ -232,13 +236,19 @@
 			{#if editDiff}
 				<!-- Diff view for edit_file -->
 				<div class="overflow-x-auto max-h-[300px] overflow-y-auto text-[12px] leading-relaxed font-mono" style="background-color: var(--code-bg); margin: 0">
-					{#each editDiff as line}
+					{#each editDiff as line, i}
 						<div
-							class="px-3 py-0 whitespace-pre flex items-start gap-2"
-							style="{line.type === 'removed' ? 'background-color: rgba(239,68,68,0.12); color: #ef4444;' : line.type === 'added' ? 'background-color: rgba(34,197,94,0.12); color: #22c55e;' : 'color: var(--code-text);'}"
+							class="flex items-stretch gap-0 whitespace-pre"
+							style="{line.type === 'removed' ? 'background-color: rgba(239,68,68,0.10);' : line.type === 'added' ? 'background-color: rgba(34,197,94,0.10);' : ''}"
 						>
-							<span class="select-none flex-shrink-0 w-3 text-center opacity-70">{line.type === 'removed' ? '-' : line.type === 'added' ? '+' : ' '}</span>
-							<span>{line.text}</span>
+							<span
+								class="select-none flex-shrink-0 w-7 text-center text-[10px] py-0.5 border-r"
+								style="{line.type === 'removed' ? 'color: #ef4444; border-color: rgba(239,68,68,0.25); background-color: rgba(239,68,68,0.15);' : line.type === 'added' ? 'color: #22c55e; border-color: rgba(34,197,94,0.25); background-color: rgba(34,197,94,0.15);' : 'color: var(--content-muted); border-color: var(--code-border); background-color: var(--code-header);'}"
+							>{line.type === 'removed' ? '−' : line.type === 'added' ? '+' : ''}</span>
+							<span
+								class="px-3 py-0.5 flex-1"
+								style="{line.type === 'removed' ? 'color: #f87171;' : line.type === 'added' ? 'color: #4ade80;' : 'color: var(--code-text);'}"
+							>{line.text}</span>
 						</div>
 					{/each}
 				</div>

@@ -387,13 +387,13 @@
 
 /* ===== Code Block Styling ===== */
 .code-block-wrapper {
-	position: relative;
+	display: flex;
+	flex-direction: column;
 	margin: 0.75rem 0;
 	border-radius: 0.75rem;
 	overflow: hidden;
 	border: 1px solid var(--code-border);
 	background: var(--code-bg);
-	/* Critical: constrain width so code can't blow out the layout */
 	width: 100%;
 	max-width: 100%;
 	min-width: 0;
@@ -404,11 +404,10 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.5rem 0.75rem;
+	padding: 0.45rem 0.75rem;
 	background: var(--code-header);
 	border-bottom: 1px solid var(--code-border);
-	position: relative;
-	z-index: 1;
+	flex-shrink: 0;
 }
 
 .code-block-lang {
