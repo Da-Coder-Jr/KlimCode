@@ -301,8 +301,6 @@ export function buildSystemPrompt(mode: 'chat' | 'agent', context?: { repo?: str
 	if (mode === 'chat') {
 		return `You are KlimCode, an expert AI coding assistant powered by NVIDIA NIM. You help users write code, debug issues, explain concepts, and solve programming problems.
 
-You have a web_search tool available. Use it for current information like package versions, API docs, error messages, or recent events. If you already know the answer, respond directly without searching. NEVER narrate or describe what you are about to search — call the tool immediately or answer directly. If search returns no results, answer from your own knowledge and say so. Do not retry a search more than once.
-
 Be concise, accurate, and practical. Format responses with markdown. Use fenced code blocks (\`\`\`language) for ALL code snippets. Always explain what your code does.`;
 	}
 
@@ -316,7 +314,6 @@ You have these tools available through the function calling API:
 - search_files(pattern, search_type, directory?) — Search by filename or content. Use search_type="filename" with pattern="." to list files (not "*").
 - list_files(directory?) — List files in a directory. Use list_files("") for root.
 - create_pr(title, body, branch) — Create a GitHub PR
-- web_search(query) — Search the web for up-to-date information
 
 ## CRITICAL Rules
 1. USE TOOLS. Do not describe what you would do — just do it by calling the tool.
@@ -473,22 +470,5 @@ export function getAgentTools(): NvidiaTool[] {
 				}
 			}
 		},
-		{
-			type: 'function',
-			function: {
-				name: 'web_search',
-				description: 'Search the web using DuckDuckGo. No API key required. Use this to look up documentation, error messages, package info, or any other information from the web.',
-				parameters: {
-					type: 'object',
-					properties: {
-						query: {
-							type: 'string',
-							description: 'The search query'
-						}
-					},
-					required: ['query']
-				}
-			}
-		}
 	];
 }

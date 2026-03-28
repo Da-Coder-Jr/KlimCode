@@ -80,7 +80,7 @@
 	function handleInput() {
 		if (textareaEl) {
 			textareaEl.style.height = 'auto';
-			textareaEl.style.height = Math.min(textareaEl.scrollHeight, 160) + 'px';
+			textareaEl.style.height = Math.min(textareaEl.scrollHeight, 200) + 'px';
 		}
 	}
 
@@ -183,51 +183,49 @@
 
 			<!-- Main Input -->
 			<div class="relative mb-8">
-				<div class="rounded-2xl p-3 transition-all shadow-soft focus-within:shadow-medium" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
-					<!-- Attached files/images preview -->
-					{#if attachedFiles.length > 0}
-						<div class="flex flex-wrap gap-2 mb-2 px-1">
-							{#each attachedFiles as file, i}
-								{#if file.preview}
-									<div class="relative group">
-										<img src={file.preview} alt={file.name} class="w-16 h-16 rounded-lg object-cover" style="border: 1px solid var(--border)" />
-										<button
-											on:click={() => removeFile(i)}
-											class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white bg-red-500 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-										>
-											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-											</svg>
-										</button>
-									</div>
-								{:else}
-									<div class="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
-										<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+				<!-- Attached files/images preview — outside wrapper to match ChatInput -->
+				{#if attachedFiles.length > 0}
+					<div class="flex flex-wrap gap-2 mb-2">
+						{#each attachedFiles as file, i}
+							{#if file.preview}
+								<div class="relative group">
+									<img src={file.preview} alt={file.name} class="w-16 h-16 rounded-lg object-cover" style="border: 1px solid var(--border)" />
+									<button
+										on:click={() => removeFile(i)}
+										class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white bg-red-500 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+									>
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 										</svg>
-										<span class="truncate max-w-[100px]">{file.name}</span>
-										<button
-											on:click={() => removeFile(i)}
-											class="transition-colors" style="color: var(--content-muted)"
-										>
-											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-											</svg>
-										</button>
-									</div>
-								{/if}
-							{/each}
-						</div>
-					{/if}
+									</button>
+								</div>
+							{:else}
+								<div class="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs" style="background-color: var(--surface-tertiary); border: 1px solid var(--border); color: var(--content-secondary)">
+									<svg class="w-3 h-3 flex-shrink-0" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+									</svg>
+									<span class="truncate max-w-[120px]">{file.name}</span>
+									<button on:click={() => removeFile(i)} class="transition-colors" style="color: var(--content-muted)">
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				{/if}
 
+				<!-- Wrapper matches ChatInput exactly: no inner padding, border only -->
+				<div class="rounded-2xl transition-all" style="background-color: var(--surface-secondary); border: 1px solid var(--border)">
 					<textarea
 						bind:this={textareaEl}
 						bind:value={messageInput}
 						on:keydown={handleKeydown}
 						on:input={handleInput}
-						placeholder="Ask anything about code..."
-						rows="3"
-						class="w-full bg-transparent resize-none px-1 py-1 focus:outline-none text-[15px] leading-relaxed"
+						placeholder="Message KlimCode..."
+						rows="1"
+						class="scrollbar-custom w-full bg-transparent resize-none px-4 py-3 focus:outline-none text-[15px] leading-relaxed max-h-[200px]"
 						style="color: var(--content)"
 					></textarea>
 
@@ -241,19 +239,18 @@
 						on:change={handleFileChange}
 					/>
 
-					<div class="flex items-center justify-between pt-1">
+					<div class="flex items-center justify-between px-3 pb-2.5">
 						<div class="flex items-center gap-2">
 							<!-- Upload button -->
 							<button
 								type="button"
 								on:click={handleUploadClick}
-								class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all btn-icon"
+								class="p-1.5 rounded-lg transition-all btn-icon"
 								title="Attach files or images"
 							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
 								</svg>
-								<span>Attach</span>
 							</button>
 
 							<!-- Agent mode toggle -->
@@ -380,7 +377,7 @@
 						<button
 							on:click={startChatWithMessage}
 							disabled={(!messageInput.trim() && attachedFiles.length === 0) || isCreating}
-							class="p-2.5 rounded-xl transition-all duration-150"
+							class="p-2 rounded-full transition-all duration-150"
 							style="{messageInput.trim() || attachedFiles.length > 0
 								? 'background-color: var(--content); color: var(--surface)'
 								: 'background-color: var(--surface-tertiary); color: var(--content-muted); cursor: not-allowed'}"
