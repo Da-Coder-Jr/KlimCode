@@ -243,7 +243,7 @@
 				</div>
 			{:else}
 				<!-- Assistant message with bubble -->
-				<div class="message-content relative rounded-2xl px-5 py-3.5" style="background-color: var(--chat-bubble-bg); border: 1px solid var(--chat-bubble-border)">
+				<div class="message-content relative rounded-2xl px-5 py-3.5" style="background-color: var(--chat-bubble-bg); border: 1px solid var(--chat-bubble-border); overflow: hidden; min-width: 0;">
 					<!-- Thinking dots: only when no text yet -->
 					{#if isStreaming && !message.content && activeSteps.length === 0}
 						<span class="inline-flex gap-1 ml-1 align-text-bottom">

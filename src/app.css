@@ -259,6 +259,10 @@
 	.prose-chat {
 		@apply leading-relaxed text-[15px];
 		color: var(--content-secondary);
+		/* Prevent long unbreakable text/URLs from overflowing the bubble */
+		overflow-wrap: break-word;
+		word-break: break-word;
+		min-width: 0;
 	}
 
 	.prose-chat h1,
@@ -389,6 +393,11 @@
 	overflow: hidden;
 	border: 1px solid var(--code-border);
 	background: var(--code-bg);
+	/* Critical: constrain width so code can't blow out the layout */
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 .code-block-header {
@@ -450,9 +459,17 @@
 	padding: 1rem !important;
 	background: var(--code-bg) !important;
 	overflow-x: auto;
+	overflow-y: visible;
 	font-size: 13px;
 	line-height: 1.6;
 	color: var(--code-text);
+	/* Prevent the pre from pushing past the wrapper's width */
+	max-width: 100%;
+	min-width: 0;
+	/* Allow long words/strings to be scrolled instead of breaking layout */
+	white-space: pre;
+	word-break: normal;
+	word-wrap: normal;
 }
 
 .table-wrapper {
