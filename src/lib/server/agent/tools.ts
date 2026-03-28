@@ -168,44 +168,75 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 }
 
 async function webSearchFallback(query: string): Promise<string> {
-	try {
-		const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-		const res = await fetch(url, {
-			headers: {
-				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-				'Accept-Language': 'en-US,en;q=0.5'
-			}
-		});
+	const headers = {
+		'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+		'Accept-Language': 'en-US,en;q=0.5'
+	};
 
-		if (!res.ok) return `No results found for: ${query}`;
-
-		const html = await res.text();
-		const results: string[] = [];
-		const titleRe = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-		const snippetRe = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-		const titles: Array<{ url: string; title: string }> = [];
-		const snippets: string[] = [];
-		let m: RegExpExecArray | null;
-		while ((m = titleRe.exec(html)) !== null && titles.length < 6) {
-			const href = m[1];
-			const title = m[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-			if (title && href) titles.push({ url: href, title });
-		}
-		while ((m = snippetRe.exec(html)) !== null && snippets.length < 6) {
-			const snippet = m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-			if (snippet) snippets.push(snippet);
-		}
-		for (let i = 0; i < Math.min(titles.length, 5); i++) {
-			const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
-			results.push(`${i + 1}. ${titles[i].title}${snippet}\n   ${titles[i].url}`);
-		}
-		return results.length > 0
-			? `Search results for "${query}":\n\n${results.join('\n\n')}`
-			: `No results found for: ${query}`;
-	} catch {
-		return `No results found for: ${query}`;
+	function stripTags(s: string) {
+		return s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
 	}
+
+	// Strategy 1: DDG Lite (simpler, more stable table-based HTML)
+	try {
+		const liteRes = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, { headers });
+		if (liteRes.ok) {
+			const html = await liteRes.text();
+			const titles: Array<{ url: string; title: string }> = [];
+			const snippets: string[] = [];
+			// DDG Lite: result links have class "result-link", snippets in class "result-snippet"
+			const linkRe = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+			const snipRe = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/g;
+			let m: RegExpExecArray | null;
+			while ((m = linkRe.exec(html)) !== null && titles.length < 6) {
+				const title = stripTags(m[2]);
+				if (title && m[1]) titles.push({ url: m[1], title });
+			}
+			while ((m = snipRe.exec(html)) !== null && snippets.length < 6) {
+				const s = stripTags(m[1]);
+				if (s) snippets.push(s);
+			}
+			if (titles.length > 0) {
+				const results = Array.from({ length: Math.min(titles.length, 5) }, (_, i) => {
+					const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
+					return `${i + 1}. ${titles[i].title}${snippet}\n   ${titles[i].url}`;
+				});
+				return `Search results for "${query}":\n\n${results.join('\n\n')}`;
+			}
+		}
+	} catch { /* fall through */ }
+
+	// Strategy 2: DDG HTML endpoint with both old and new CSS class patterns
+	try {
+		const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, { headers });
+		if (htmlRes.ok) {
+			const html = await htmlRes.text();
+			const titles: Array<{ url: string; title: string }> = [];
+			const snippets: string[] = [];
+			// Try both class="result__a" (older) and class="result__url" patterns
+			const linkRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+			const snipRe = /<(?:a|span)[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|span)>/g;
+			let m: RegExpExecArray | null;
+			while ((m = linkRe.exec(html)) !== null && titles.length < 6) {
+				const title = stripTags(m[2]);
+				if (title && m[1] && !m[1].startsWith('//duckduckgo')) titles.push({ url: m[1], title });
+			}
+			while ((m = snipRe.exec(html)) !== null && snippets.length < 6) {
+				const s = stripTags(m[1]);
+				if (s) snippets.push(s);
+			}
+			if (titles.length > 0) {
+				const results = Array.from({ length: Math.min(titles.length, 5) }, (_, i) => {
+					const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
+					return `${i + 1}. ${titles[i].title}${snippet}\n   ${titles[i].url}`;
+				});
+				return `Search results for "${query}":\n\n${results.join('\n\n')}`;
+			}
+		}
+	} catch { /* fall through */ }
+
+	return `Search returned no results for: "${query}". Answer from your own knowledge.`;
 }
 
 async function handleCreatePR(workspace: Workspace, args: Record<string, string>): Promise<string> {

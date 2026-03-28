@@ -10,9 +10,10 @@ import {
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
-// No hard cap — the model decides when it's done. The system prompt enforces a
-// create_pr final step which naturally terminates the loop.
-const MAX_TOOL_ROUNDS = Infinity;
+// Safety cap — prevents runaway loops when tools return unhelpful results.
+// 25 rounds is generous for any real coding task; the model normally stops
+// much sooner once it calls create_pr or runs out of things to do.
+const MAX_TOOL_ROUNDS = 25;
 
 interface AgentExecutionOptions {
 	apiKey: string;
