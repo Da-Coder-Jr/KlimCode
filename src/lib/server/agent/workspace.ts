@@ -142,7 +142,10 @@ export class Workspace {
 				}
 			);
 
-			if (!response.ok) return [];
+			if (!response.ok) {
+				const msg = await response.text().catch(() => '');
+				throw new Error(`GitHub search API error ${response.status}: ${msg || response.statusText}`);
+			}
 			const data = await response.json();
 			return (data.items || []).map((item: { path: string }) => item.path).slice(0, 50);
 		}
@@ -158,7 +161,10 @@ export class Workspace {
 			}
 		);
 
-		if (!response.ok) return [];
+		if (!response.ok) {
+			const msg = await response.text().catch(() => '');
+			throw new Error(`GitHub API error ${response.status}: ${msg || response.statusText}`);
+		}
 		const data = await response.json();
 		const tree = data.tree || [];
 
