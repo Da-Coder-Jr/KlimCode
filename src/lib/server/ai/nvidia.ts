@@ -316,23 +316,24 @@ You have these tools available through the function calling API:
 - search_files(pattern, search_type, directory?) — Search by filename or content. Use search_type="filename" with pattern="." to list files (not "*").
 - list_files(directory?) — List files in a directory. Use list_files("") for root.
 - create_pr(title, body, branch) — Create a GitHub PR
-- web_search(query) — Search the web via DuckDuckGo (no API key needed)
+- web_search(query) — Search the web for up-to-date information
 
 ## CRITICAL Rules
 1. USE TOOLS. Do not describe what you would do — just do it by calling the tool.
-2. Call tools ONLY via the function calling API. NEVER output raw JSON in your text.
+2. Call tools ONLY via the function calling API. NEVER output file contents or JSON as plain text in your response — always use write_file or edit_file instead.
 3. NEVER narrate what you are about to do. Just do it immediately with a tool call.
 4. Always read_file before edit_file to get the exact text.
 5. When edit_file fails, use write_file to rewrite the whole file.
-6. After all file changes are complete, create a pull request (create_pr). Only create the PR as the LAST step.
-7. NEVER use markdown formatting. Do NOT use **bold**, _italic_, ## headers, or bullet lists with - or *. Write plain text only.
+6. For multi-file projects, you MUST write EVERY required file (source files, config files, package.json, README, etc.) using write_file calls before creating the PR. Do not stop after one file.
+7. ALWAYS call create_pr as the very last step — this is mandatory for every task, no exceptions.
+8. NEVER use markdown formatting. Do NOT use **bold**, _italic_, ## headers, or bullet lists with - or *. Write plain text only.
 ${context?.repo ? `\n## Repository: ${context.repo} (branch: ${context.branch || 'main'})` : '\n## Note: No repo connected. Connect GitHub to use file operations.'}
 
 ## How to Respond
 1. Write ONE brief plain-text sentence acknowledging the task (e.g. "On it." or "Got it, fixing that now.").
-2. Immediately call the necessary tools — zero narration before tool calls.
-3. After all tools complete, write a short plain-text summary of what was done.
-4. NEVER output raw JSON like {"name":"...", "parameters":{...}} in your text — use the API tool calling mechanism.`;
+2. Immediately call ALL necessary tools — write every file needed, then call create_pr last.
+3. After create_pr completes, write a short plain-text summary listing every file written and the PR link.
+4. CRITICAL: If you catch yourself about to type out file content as text, stop immediately and use write_file instead.`;
 }
 
 export function getAgentTools(): NvidiaTool[] {

@@ -105,96 +105,97 @@ async function handleListFiles(workspace: Workspace, args: Record<string, string
 }
 
 async function handleWebSearch(args: Record<string, string>): Promise<string> {
-	const query = args.query;
+	const query = args.query?.trim();
 	if (!query) return 'ERROR: query parameter is required';
 
-	try {
-		// DuckDuckGo Instant Answer JSON API — no API key needed, no bot blocking
-		const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-		const res = await fetch(url, {
-			headers: {
-				'Accept': 'application/json',
-				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-			}
-		});
-
-		if (!res.ok) return `Search failed: HTTP ${res.status}`;
-
-		const rawText = await res.text();
-		if (!rawText.trim()) return await webSearchFallback(query);
-
-		let data: Record<string, unknown>;
-		try {
-			data = JSON.parse(rawText);
-		} catch {
-			return await webSearchFallback(query);
-		}
-
-		const results: string[] = [];
-
-		// Abstract (direct answer / topic summary)
-		if (data.AbstractText) {
-			results.push(`Summary: ${data.AbstractText}`);
-			if (data.AbstractURL) results.push(`Source: ${data.AbstractURL}`);
-		}
-
-		// Answer (calculator, conversions, etc.)
-		if (data.Answer) {
-			results.push(`Answer: ${data.Answer}`);
-		}
-
-		// Related topics
-		if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-			const topics = data.RelatedTopics
-				.filter((t: { Text?: string; FirstURL?: string }) => t.Text && t.FirstURL)
-				.slice(0, 6)
-				.map((t: { Text: string; FirstURL: string }, i: number) => `${i + 1}. ${t.Text}\n   ${t.FirstURL}`);
-			if (topics.length > 0) {
-				if (results.length > 0) results.push('');
-				results.push('Related results:');
-				results.push(...topics);
-			}
-		}
-
-		if (results.length === 0) {
-			// Fallback: try DuckDuckGo HTML with browser UA
-			return await webSearchFallback(query);
-		}
-
-		return `Search results for "${query}":\n\n${results.join('\n')}`;
-	} catch (err) {
-		return `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
-	}
-}
-
-async function webSearchFallback(query: string): Promise<string> {
-	const headers = {
-		'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	const browserHeaders = {
+		'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-		'Accept-Language': 'en-US,en;q=0.5'
+		'Accept-Language': 'en-US,en;q=0.9'
 	};
 
-	function stripTags(s: string) {
-		return s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+	function strip(s: string) {
+		return s
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+			.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#39;/g, "'")
+			.replace(/\s+/g, ' ').trim();
 	}
 
-	// Strategy 1: DDG Lite (simpler, more stable table-based HTML)
+	// Strategy 1: DuckDuckGo Instant Answer API (best for tech/factual queries)
 	try {
-		const liteRes = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, { headers });
-		if (liteRes.ok) {
-			const html = await liteRes.text();
+		const ddgRes = await fetch(
+			`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+			{ headers: { ...browserHeaders, Accept: 'application/json' } }
+		);
+		if (ddgRes.ok) {
+			const text = await ddgRes.text();
+			if (text.trim()) {
+				const data = JSON.parse(text) as Record<string, unknown>;
+				const parts: string[] = [];
+				if (data.AbstractText) {
+					parts.push(`Summary: ${data.AbstractText}`);
+					if (data.AbstractURL) parts.push(`Source: ${data.AbstractURL}`);
+				}
+				if (data.Answer) parts.push(`Answer: ${data.Answer}`);
+				const topics = (data.RelatedTopics as Array<{ Text?: string; FirstURL?: string }> || [])
+					.filter(t => t.Text && t.FirstURL).slice(0, 5)
+					.map((t, i) => `${i + 1}. ${t.Text}\n   ${t.FirstURL}`);
+				if (topics.length > 0) parts.push(`Related:\n${topics.join('\n')}`);
+				if (parts.length > 0) return `Search results for "${query}":\n\n${parts.join('\n\n')}`;
+			}
+		}
+	} catch { /* fall through */ }
+
+	// Strategy 2: Bing HTML search (most reliable for general queries server-side)
+	try {
+		const bingRes = await fetch(
+			`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&cc=US`,
+			{ headers: browserHeaders }
+		);
+		if (bingRes.ok) {
+			const html = await bingRes.text();
+			const results: string[] = [];
+			const algoRe = /<li[^>]+class="[^"]*\bb_algo\b[^"]*"[^>]*>([\s\S]*?)<\/li>/g;
+			let m: RegExpExecArray | null;
+			while ((m = algoRe.exec(html)) !== null && results.length < 5) {
+				const block = m[1];
+				const titleM = /<h2[^>]*>\s*<a[^>]+href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i.exec(block);
+				if (!titleM) continue;
+				const href = titleM[1];
+				const title = strip(titleM[2]);
+				const snipM =
+					/<p[^>]+class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i.exec(block) ||
+					/<div[^>]+class="[^"]*b_caption[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i.exec(block);
+				const snippet = snipM ? strip(snipM[1]).slice(0, 200) : '';
+				if (title && href) {
+					results.push(`${results.length + 1}. ${title}${snippet ? `\n   ${snippet}` : ''}\n   ${href}`);
+				}
+			}
+			if (results.length > 0) return `Search results for "${query}":\n\n${results.join('\n\n')}`;
+		}
+	} catch { /* fall through */ }
+
+	// Strategy 3: DuckDuckGo HTML endpoint
+	try {
+		const ddgHtmlRes = await fetch(
+			`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+			{ headers: browserHeaders }
+		);
+		if (ddgHtmlRes.ok) {
+			const html = await ddgHtmlRes.text();
 			const titles: Array<{ url: string; title: string }> = [];
 			const snippets: string[] = [];
-			// DDG Lite: result links have class "result-link", snippets in class "result-snippet"
-			const linkRe = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-			const snipRe = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/g;
+			// href here is the real URL (DDG HTML uses direct links, not redirects)
+			const linkRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+			const snipRe = /<[a-z]+[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/[a-z]+>/g;
 			let m: RegExpExecArray | null;
 			while ((m = linkRe.exec(html)) !== null && titles.length < 6) {
-				const title = stripTags(m[2]);
+				const title = strip(m[2]);
 				if (title && m[1]) titles.push({ url: m[1], title });
 			}
 			while ((m = snipRe.exec(html)) !== null && snippets.length < 6) {
-				const s = stripTags(m[1]);
+				const s = strip(m[1]);
 				if (s) snippets.push(s);
 			}
 			if (titles.length > 0) {
@@ -207,37 +208,9 @@ async function webSearchFallback(query: string): Promise<string> {
 		}
 	} catch { /* fall through */ }
 
-	// Strategy 2: DDG HTML endpoint with both old and new CSS class patterns
-	try {
-		const htmlRes = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, { headers });
-		if (htmlRes.ok) {
-			const html = await htmlRes.text();
-			const titles: Array<{ url: string; title: string }> = [];
-			const snippets: string[] = [];
-			// Try both class="result__a" (older) and class="result__url" patterns
-			const linkRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-			const snipRe = /<(?:a|span)[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|span)>/g;
-			let m: RegExpExecArray | null;
-			while ((m = linkRe.exec(html)) !== null && titles.length < 6) {
-				const title = stripTags(m[2]);
-				if (title && m[1] && !m[1].startsWith('//duckduckgo')) titles.push({ url: m[1], title });
-			}
-			while ((m = snipRe.exec(html)) !== null && snippets.length < 6) {
-				const s = stripTags(m[1]);
-				if (s) snippets.push(s);
-			}
-			if (titles.length > 0) {
-				const results = Array.from({ length: Math.min(titles.length, 5) }, (_, i) => {
-					const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
-					return `${i + 1}. ${titles[i].title}${snippet}\n   ${titles[i].url}`;
-				});
-				return `Search results for "${query}":\n\n${results.join('\n\n')}`;
-			}
-		}
-	} catch { /* fall through */ }
-
-	return `Search returned no results for: "${query}". Answer from your own knowledge.`;
+	return `Web search for "${query}" returned no results. Answer from your training knowledge and mention that live search was unavailable.`;
 }
+
 
 async function handleCreatePR(workspace: Workspace, args: Record<string, string>): Promise<string> {
 	const changes = workspace.getChangedFiles();

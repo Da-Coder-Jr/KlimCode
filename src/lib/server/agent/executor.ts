@@ -10,10 +10,11 @@ import {
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
-// Safety cap — prevents runaway loops when tools return unhelpful results.
-// 25 rounds is generous for any real coding task; the model normally stops
-// much sooner once it calls create_pr or runs out of things to do.
-const MAX_TOOL_ROUNDS = 25;
+// No hard cap — the model decides when it's done.
+// The system prompt mandates create_pr as the final step which naturally
+// terminates the loop. Infinite is intentional so large projects can
+// write many files without being cut off.
+const MAX_TOOL_ROUNDS = Infinity;
 
 interface AgentExecutionOptions {
 	apiKey: string;
@@ -305,6 +306,17 @@ export async function* executeChat(options: {
 					function: { name: tc.name, arguments: tc.args }
 				});
 			}
+
+			// Fallback: some models output tool calls as raw JSON text instead of
+			// using the API — parse them out so they actually get executed.
+			if (toolCalls.length === 0 && fullContent) {
+				const parsed = parseTextToolCalls(fullContent);
+				if (parsed.toolCalls.length > 0) {
+					toolCalls = parsed.toolCalls;
+					fullContent = parsed.cleanText;
+					yield { type: 'text_replace', content: fullContent };
+				}
+			}
 		} catch (error) {
 			yield { type: 'error', error: error instanceof Error ? error.message : 'NVIDIA API error' };
 			return;
@@ -374,46 +386,109 @@ function buildAPIMessages(
 	];
 }
 
+const KNOWN_TOOLS = new Set([
+	'read_file', 'write_file', 'edit_file', 'search_files',
+	'list_files', 'create_pr', 'web_search'
+]);
+
+/**
+ * Extract all top-level JSON objects from arbitrary text using bracket matching.
+ * This is more robust than regex for nested objects (e.g. write_file content).
+ */
+function extractJsonObjects(text: string): Array<{ start: number; end: number; obj: Record<string, unknown> }> {
+	const results: Array<{ start: number; end: number; obj: Record<string, unknown> }> = [];
+	let i = 0;
+	while (i < text.length) {
+		if (text[i] !== '{') { i++; continue; }
+		let depth = 0;
+		let inStr = false;
+		let esc = false;
+		let j = i;
+		while (j < text.length) {
+			const ch = text[j];
+			if (esc) { esc = false; j++; continue; }
+			if (ch === '\\' && inStr) { esc = true; j++; continue; }
+			if (ch === '"') { inStr = !inStr; j++; continue; }
+			if (!inStr) {
+				if (ch === '{') depth++;
+				else if (ch === '}') { depth--; if (depth === 0) { j++; break; } }
+			}
+			j++;
+		}
+		if (depth === 0 && j > i) {
+			try {
+				const obj = JSON.parse(text.slice(i, j)) as Record<string, unknown>;
+				results.push({ start: i, end: j, obj });
+			} catch { /* not valid JSON */ }
+			i = j;
+		} else {
+			i++;
+		}
+	}
+	return results;
+}
+
 /**
  * Parse tool calls that some models output as raw JSON text instead of using the API.
- * Handles formats like: {"name": "read_file", "parameters": {"path": "..."}}
- * and: {"type": "function", "name": "...", "parameters": {...}}
+ * Handles multiple formats:
+ *   {"name": "tool", "parameters": {...}}
+ *   {"type": "function", "name": "tool", "parameters": {...}}
+ *   {"type": "function", "function": {"name": "tool", "arguments": "{...}"}}
  */
-function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
+export function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
 	const toolCalls: ToolCall[] = [];
-	let cleanText = text;
-
-	// Match JSON objects that look like tool calls on their own lines
-	const jsonToolPattern = /\n?\s*\{[\s]*"(?:type"\s*:\s*"function"\s*,\s*")?name"\s*:\s*"(\w+)"\s*,\s*"parameters"\s*:\s*(\{[^}]*(?:\{[^}]*\}[^}]*)?\})\s*\}\s*\n?/g;
-	let match: RegExpExecArray | null;
 	const regions: Array<[number, number]> = [];
 
-	while ((match = jsonToolPattern.exec(text)) !== null) {
-		const toolName = match[1];
-		const argsStr = match[2];
+	for (const { start, end, obj } of extractJsonObjects(text)) {
+		let toolName: string | undefined;
+		let argsStr: string | undefined;
 
-		try {
-			JSON.parse(argsStr); // validate it's valid JSON
-			toolCalls.push({
-				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-				type: 'function',
-				function: { name: toolName, arguments: argsStr }
-			});
-			regions.push([match.index, match.index + match[0].length]);
-		} catch {
-			// Not valid JSON, skip
+		// Format 1: {"name": "tool", "parameters": {...}}
+		if (typeof obj.name === 'string' && KNOWN_TOOLS.has(obj.name) && obj.parameters && typeof obj.parameters === 'object') {
+			toolName = obj.name;
+			argsStr = JSON.stringify(obj.parameters);
+		}
+		// Format 2: {"type": "function", "name": "tool", "parameters": {...}}
+		else if (obj.type === 'function' && typeof obj.name === 'string' && KNOWN_TOOLS.has(obj.name) && obj.parameters) {
+			toolName = obj.name;
+			argsStr = JSON.stringify(obj.parameters);
+		}
+		// Format 3: {"type": "function", "function": {"name": "tool", "arguments": "..."}}
+		else if (obj.type === 'function' && obj.function && typeof obj.function === 'object') {
+			const fn = obj.function as Record<string, unknown>;
+			if (typeof fn.name === 'string' && KNOWN_TOOLS.has(fn.name)) {
+				toolName = fn.name;
+				argsStr = typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments ?? {});
+			}
+		}
+		// Format 4: {"tool": "name", "parameters": {...}} or {"tool_name": "name", ...}
+		else {
+			const nameVal = obj.tool ?? obj.tool_name;
+			if (typeof nameVal === 'string' && KNOWN_TOOLS.has(nameVal) && obj.parameters) {
+				toolName = nameVal;
+				argsStr = JSON.stringify(obj.parameters);
+			}
+		}
+
+		if (toolName && argsStr) {
+			try {
+				JSON.parse(argsStr); // validate
+				toolCalls.push({
+					id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+					type: 'function',
+					function: { name: toolName, arguments: argsStr }
+				});
+				regions.push([start, end]);
+			} catch { /* skip */ }
 		}
 	}
 
-	// Remove matched regions from text (in reverse to preserve indices)
-	if (regions.length > 0) {
-		for (let i = regions.length - 1; i >= 0; i--) {
-			cleanText = cleanText.slice(0, regions[i][0]) + cleanText.slice(regions[i][1]);
-		}
-		cleanText = cleanText.trim();
+	let cleanText = text;
+	for (let i = regions.length - 1; i >= 0; i--) {
+		cleanText = cleanText.slice(0, regions[i][0]) + cleanText.slice(regions[i][1]);
 	}
 
-	return { cleanText, toolCalls };
+	return { cleanText: cleanText.trim(), toolCalls };
 }
 
 function buildStepDescription(toolName: string, argsJson: string): string {
