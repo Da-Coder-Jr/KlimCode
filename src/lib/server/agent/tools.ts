@@ -122,7 +122,23 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 			.replace(/\s+/g, ' ').trim();
 	}
 
-	// Strategy 1: DuckDuckGo Instant Answer API (best for tech/factual queries)
+	// Strategy 1: Jina AI Search — free, no API key, designed for AI agents,
+	// not blocked by bot-detection unlike DDG/Bing HTML scraping.
+	try {
+		const jinaRes = await fetch(
+			`https://s.jina.ai/${encodeURIComponent(query)}`,
+			{ headers: { ...browserHeaders, Accept: 'text/plain' } }
+		);
+		if (jinaRes.ok) {
+			const text = await jinaRes.text();
+			const trimmed = text.trim().slice(0, 3000);
+			if (trimmed.length > 100) {
+				return `Search results for "${query}":\n\n${trimmed}`;
+			}
+		}
+	} catch { /* fall through */ }
+
+	// Strategy 2: DuckDuckGo Instant Answer API (good for tech/factual queries)
 	try {
 		const ddgRes = await fetch(
 			`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
@@ -147,7 +163,7 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 		}
 	} catch { /* fall through */ }
 
-	// Strategy 2: Bing HTML search (most reliable for general queries server-side)
+	// Strategy 3: Bing HTML search
 	try {
 		const bingRes = await fetch(
 			`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&cc=US`,
@@ -176,7 +192,7 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 		}
 	} catch { /* fall through */ }
 
-	// Strategy 3: DuckDuckGo HTML endpoint
+	// Strategy 4: DuckDuckGo HTML endpoint
 	try {
 		const ddgHtmlRes = await fetch(
 			`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
