@@ -1,26 +1,6 @@
 import type { NvidiaModel } from '$types/core';
 
 export const AVAILABLE_MODELS: NvidiaModel[] = [
-	// ── Reliable free-tier models ──
-	{
-		id: 'meta/llama-3.3-70b-instruct',
-		name: 'Llama 3.3 70B',
-		description: 'Meta Llama 3.3 70B — reliable free tier, great for chat and code',
-		maxTokens: 32768,
-		supportsTools: true,
-		supportsFunctions: true,
-		category: 'chat'
-	},
-	{
-		id: 'nvidia/llama-3.1-nemotron-70b-instruct',
-		name: 'Nemotron 70B',
-		description: 'NVIDIA-tuned Llama 70B — strong reasoning, free tier',
-		maxTokens: 32768,
-		supportsTools: true,
-		supportsFunctions: true,
-		category: 'chat'
-	},
-
 	// ── Best coding models ──
 	{
 		id: 'qwen/qwen3-coder-480b-a35b-instruct',
