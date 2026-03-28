@@ -54,7 +54,9 @@ export async function createConversation(mode: 'chat' | 'agent', model: string):
 
 	const data = await res.json();
 	conversations.update((convs) => [data.conversation, ...convs]);
-	activeConversationId.set(data.conversation.id);
+	// Do NOT set activeConversationId here — doing so while still on the old chat URL
+	// triggers the [id]/+page.svelte reactive, which calls selectConversation(OLD_ID)
+	// and reloads the old chat. The page reactive handles selection after goto() fires.
 	messages.set([]);
 	agentSteps.set([]);
 	return data.conversation.id;
