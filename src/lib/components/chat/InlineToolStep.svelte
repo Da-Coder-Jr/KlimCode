@@ -44,6 +44,8 @@
 				if (desc.startsWith('Reading ')) return desc.replace('Reading ', 'Read ') + '.';
 				if (desc.startsWith('Writing ')) return desc.replace('Writing ', 'Wrote ') + '.';
 				if (desc.startsWith('Editing ')) return desc.replace('Editing ', 'Edited ') + '.';
+				if (desc.startsWith('Searching for')) return desc.replace('Searching for', 'Searched for') + '.';
+				if (desc.startsWith('Searching "')) return desc.replace('Searching "', 'Searched "') + '.';
 				if (desc.startsWith('Searching')) return 'Search complete.';
 				if (desc.startsWith('Listing ')) return desc.replace('Listing ', 'Listed ') + '.';
 				if (desc.startsWith('Creating PR')) return 'Pull request created.';
@@ -161,14 +163,20 @@
 		class:cursor-default={!hasDetails}
 	>
 		<!-- Status icon -->
-		<svg
-			class="w-3.5 h-3.5 flex-shrink-0"
-			class:spinning={step.status === 'running'}
-			style="color: {step.status === 'running' ? 'var(--content-muted)' : step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
-			fill="none" stroke="currentColor" viewBox="0 0 24 24"
-		>
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
-		</svg>
+		{#if step.status === 'running'}
+			<svg class="w-3.5 h-3.5 flex-shrink-0 spinner-icon" style="color: var(--content-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+				<path class="opacity-75" fill="currentColor" stroke="none" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+			</svg>
+		{:else}
+			<svg
+				class="w-3.5 h-3.5 flex-shrink-0"
+				style="color: {step.status === 'failed' ? '#ef4444' : 'var(--content-muted)'}"
+				fill="none" stroke="currentColor" viewBox="0 0 24 24"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getStepIcon(step.type)} />
+			</svg>
+		{/if}
 
 		<!-- Status text -->
 		<span
@@ -284,8 +292,8 @@
 		100% { background-position: 0% 0; }
 	}
 
-	.spinning {
-		animation: spin 1.5s linear infinite;
+	.spinner-icon {
+		animation: spin 0.8s linear infinite;
 	}
 
 	@keyframes spin {

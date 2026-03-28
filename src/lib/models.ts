@@ -97,7 +97,7 @@ export const AVAILABLE_MODELS: NvidiaModel[] = [
 		category: 'reasoning'
 	},
 	{
-		id: 'zai-org/glm-5',
+		id: 'z-ai/glm5',
 		name: 'GLM-5 744B',
 		description: '744B MoE — top SWE-bench & BrowseComp scores',
 		maxTokens: 32768,

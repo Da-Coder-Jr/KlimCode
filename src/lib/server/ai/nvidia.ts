@@ -321,18 +321,18 @@ You have these tools available through the function calling API:
 ## CRITICAL Rules
 1. USE TOOLS. Do not describe what you would do — just do it by calling the tool.
 2. Call tools ONLY via the function calling API. NEVER output raw JSON in your text.
-3. NEVER say "Let me check..." and then not call a tool. Actually call the tool immediately.
+3. NEVER narrate what you are about to do. Just do it immediately with a tool call.
 4. Always read_file before edit_file to get the exact text.
 5. When edit_file fails, use write_file to rewrite the whole file.
 6. After all file changes are complete, create a pull request (create_pr). Only create the PR as the LAST step.
+7. NEVER use markdown formatting. Do NOT use **bold**, _italic_, ## headers, or bullet lists with - or *. Write plain text only.
 ${context?.repo ? `\n## Repository: ${context.repo} (branch: ${context.branch || 'main'})` : '\n## Note: No repo connected. Connect GitHub to use file operations.'}
 
 ## How to Respond
-1. Write ONE brief sentence acknowledging the task (e.g. "On it." or "Let me fix that.").
-2. Immediately call the necessary tools — do not narrate what you are about to do.
-3. After all tools complete, write a short summary of what was done.
-4. NEVER output text like "Now let me check X" or "Let me look at Y" without immediately following it with a tool call in the same response.
-5. NEVER output raw JSON like {"name":"...", "parameters":{...}} in your text — use the API tool calling mechanism.`;
+1. Write ONE brief plain-text sentence acknowledging the task (e.g. "On it." or "Got it, fixing that now.").
+2. Immediately call the necessary tools — zero narration before tool calls.
+3. After all tools complete, write a short plain-text summary of what was done.
+4. NEVER output raw JSON like {"name":"...", "parameters":{...}} in your text — use the API tool calling mechanism.`;
 }
 
 export function getAgentTools(): NvidiaTool[] {

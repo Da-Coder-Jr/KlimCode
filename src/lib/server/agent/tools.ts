@@ -109,52 +109,94 @@ async function handleWebSearch(args: Record<string, string>): Promise<string> {
 	if (!query) return 'ERROR: query parameter is required';
 
 	try {
-		// Use DuckDuckGo Lite — no API key, no tracking, scrape-friendly
-		const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+		// DuckDuckGo Instant Answer JSON API — no API key needed, no bot blocking
+		const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
 		const res = await fetch(url, {
 			headers: {
-				'User-Agent': 'Mozilla/5.0 (compatible; KlimCode/1.0)'
+				'Accept': 'application/json',
+				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 			}
 		});
 
 		if (!res.ok) return `Search failed: HTTP ${res.status}`;
 
-		const html = await res.text();
+		const data = await res.json();
 
-		// Extract result titles, URLs, and snippets from DuckDuckGo HTML
 		const results: string[] = [];
 
-		// Match result blocks: <a class="result__a" href="...">title</a> and <a class="result__snippet">snippet</a>
-		const titleRe = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-		const snippetRe = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-
-		const titles: Array<{ url: string; title: string }> = [];
-		const snippets: string[] = [];
-
-		let m: RegExpExecArray | null;
-		while ((m = titleRe.exec(html)) !== null && titles.length < 8) {
-			const href = m[1];
-			const title = m[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
-			if (title && href) titles.push({ url: href, title });
+		// Abstract (direct answer / topic summary)
+		if (data.AbstractText) {
+			results.push(`Summary: ${data.AbstractText}`);
+			if (data.AbstractURL) results.push(`Source: ${data.AbstractURL}`);
 		}
 
-		while ((m = snippetRe.exec(html)) !== null && snippets.length < 8) {
-			const snippet = m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
-			if (snippet) snippets.push(snippet);
+		// Answer (calculator, conversions, etc.)
+		if (data.Answer) {
+			results.push(`Answer: ${data.Answer}`);
 		}
 
-		if (titles.length === 0) {
-			return `No results found for: ${query}`;
+		// Related topics
+		if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+			const topics = data.RelatedTopics
+				.filter((t: { Text?: string; FirstURL?: string }) => t.Text && t.FirstURL)
+				.slice(0, 6)
+				.map((t: { Text: string; FirstURL: string }, i: number) => `${i + 1}. ${t.Text}\n   ${t.FirstURL}`);
+			if (topics.length > 0) {
+				if (results.length > 0) results.push('');
+				results.push('Related results:');
+				results.push(...topics);
+			}
 		}
 
-		for (let i = 0; i < Math.min(titles.length, 5); i++) {
-			const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
-			results.push(`${i + 1}. ${titles[i].title}${snippet}`);
+		if (results.length === 0) {
+			// Fallback: try DuckDuckGo HTML with browser UA
+			return await webSearchFallback(query);
 		}
 
-		return `Search results for "${query}":\n\n${results.join('\n\n')}`;
+		return `Search results for "${query}":\n\n${results.join('\n')}`;
 	} catch (err) {
 		return `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
+	}
+}
+
+async function webSearchFallback(query: string): Promise<string> {
+	try {
+		const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+		const res = await fetch(url, {
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+				'Accept-Language': 'en-US,en;q=0.5'
+			}
+		});
+
+		if (!res.ok) return `No results found for: ${query}`;
+
+		const html = await res.text();
+		const results: string[] = [];
+		const titleRe = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+		const snippetRe = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+		const titles: Array<{ url: string; title: string }> = [];
+		const snippets: string[] = [];
+		let m: RegExpExecArray | null;
+		while ((m = titleRe.exec(html)) !== null && titles.length < 6) {
+			const href = m[1];
+			const title = m[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+			if (title && href) titles.push({ url: href, title });
+		}
+		while ((m = snippetRe.exec(html)) !== null && snippets.length < 6) {
+			const snippet = m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+			if (snippet) snippets.push(snippet);
+		}
+		for (let i = 0; i < Math.min(titles.length, 5); i++) {
+			const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
+			results.push(`${i + 1}. ${titles[i].title}${snippet}\n   ${titles[i].url}`);
+		}
+		return results.length > 0
+			? `Search results for "${query}":\n\n${results.join('\n\n')}`
+			: `No results found for: ${query}`;
+	} catch {
+		return `No results found for: ${query}`;
 	}
 }
 

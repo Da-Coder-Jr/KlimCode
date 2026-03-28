@@ -6,19 +6,24 @@
 	import ChatWindow from '$components/chat/ChatWindow.svelte';
 	import Header from '$components/layout/Header.svelte';
 
-	onMount(async () => {
-		const id = $page.params.id;
-		if (id && get(activeConversationId) !== id) {
-			await selectConversation(id);
-		}
-	});
+	// Track which ID we're currently loading to avoid duplicate fetches
+	let loadingId: string | null = null;
 
-	$: if ($page.params.id && $activeConversation?.id !== $page.params.id) {
-		// Clear stale messages immediately when navigating to a different conversation
+	async function loadIfNeeded(id: string) {
+		if (!id || loadingId === id || get(activeConversationId) === id) return;
+		loadingId = id;
 		messages.set([]);
 		agentSteps.set([]);
-		selectConversation($page.params.id);
+		await selectConversation(id);
+		loadingId = null;
 	}
+
+	onMount(() => {
+		loadIfNeeded($page.params.id);
+	});
+
+	// Fires when the URL changes (navigating between chats)
+	$: loadIfNeeded($page.params.id);
 </script>
 
 <svelte:head>

@@ -64,6 +64,7 @@ export async function* executeAgent(
 
 	let round = 0;
 	let currentMessages = [...apiMessages];
+	let totalTextEmitted = 0;  // cumulative text length across all rounds
 
 	while (round < MAX_TOOL_ROUNDS) {
 		round++;
@@ -172,6 +173,10 @@ export async function* executeAgent(
 			}))
 		});
 
+		// Track cumulative text so tool steps get correct inline position
+		const stepContentOffset = totalTextEmitted + fullContent.length;
+		totalTextEmitted += fullContent.length;
+
 		for (const toolCall of toolCalls) {
 			const stepDescription = buildStepDescription(toolCall.function.name, toolCall.function.arguments);
 			const step: AgentStep = {
@@ -180,7 +185,8 @@ export async function* executeAgent(
 				status: 'running',
 				description: stepDescription,
 				startedAt: new Date().toISOString(),
-				toolArgs: toolCall.function.arguments
+				toolArgs: toolCall.function.arguments,
+				contentOffset: stepContentOffset
 			};
 
 			yield { type: 'agent_step', agentStep: step };
@@ -432,7 +438,8 @@ function buildStepDescription(toolName: string, argsJson: string): string {
 function mapToolToStep(toolName: string): AgentStep['type'] {
 	const map: Record<string, AgentStep['type']> = {
 		read_file: 'read_file', write_file: 'write_file', edit_file: 'edit_file',
-		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr'
+		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr',
+		web_search: 'search_files'
 	};
 	return map[toolName] || 'think';
 }
