@@ -25,7 +25,7 @@
 	async function handleNewChat() {
 		showNewMenu = false;
 		try {
-			const model = $settings.defaultModel || 'qwen/qwen3-coder-480b-a35b-instruct';
+			const model = $settings.defaultModel || 'meta/llama-3.3-70b-instruct';
 			const id = await createConversation('chat', model);
 			onClose();
 			goto(`/chat/${id}`);
@@ -37,7 +37,7 @@
 	async function handleNewAgent() {
 		showNewMenu = false;
 		try {
-			const model = $settings.defaultModel || 'qwen/qwen3-coder-480b-a35b-instruct';
+			const model = $settings.defaultModel || 'meta/llama-3.3-70b-instruct';
 			const id = await createConversation('agent', model);
 			onClose();
 			goto(`/chat/${id}`);

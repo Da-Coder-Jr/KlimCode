@@ -72,11 +72,15 @@ export async function callNvidia(options: NvidiaRequestOptions): Promise<Respons
 
 	if (!response.ok) {
 		const errorBody = await response.text();
-		throw new NvidiaAPIError(
-			`NVIDIA API error: ${response.status} ${response.statusText}`,
-			response.status,
-			errorBody
-		);
+		let message = `NVIDIA API error: ${response.status} ${response.statusText}`;
+		if (response.status === 404) {
+			message = `Model not found (404): "${model}" is not available on the NVIDIA API. Please choose a different model in Settings.`;
+		} else if (response.status === 401) {
+			message = 'Invalid NVIDIA API key. Please update your key in Settings.';
+		} else if (response.status === 402 || response.status === 429) {
+			message = 'NVIDIA API credits exhausted or rate limit hit. Please check your account at build.nvidia.com.';
+		}
+		throw new NvidiaAPIError(message, response.status, errorBody);
 	}
 
 	return response;
@@ -297,7 +301,9 @@ export function buildSystemPrompt(mode: 'chat' | 'agent', context?: { repo?: str
 	if (mode === 'chat') {
 		return `You are KlimCode, an expert AI coding assistant powered by NVIDIA NIM. You help users write code, debug issues, explain concepts, and solve programming problems.
 
-Be concise, accurate, and practical. Format responses with markdown. When writing code, use best practices and modern patterns. Always explain what your code does and why.`;
+You have a web_search tool available. Use it whenever you need up-to-date information, docs, package details, error messages, or anything that would benefit from a live web lookup. Call it proactively — don't tell the user you can't look things up.
+
+Be concise, accurate, and practical. Format responses with markdown. Use fenced code blocks (\`\`\`language) for ALL code snippets. Always explain what your code does.`;
 	}
 
 	return `You are KlimCode Agent, an autonomous AI coding assistant with access to a GitHub repository.

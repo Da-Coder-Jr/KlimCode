@@ -10,8 +10,9 @@ import {
 import { executeToolCall, type ToolExecutionContext } from './tools';
 import { createWorkspace, getWorkspace, type Workspace } from './workspace';
 
-// Safety cap — prevents runaway loops where a model keeps calling tools forever
-const MAX_TOOL_ROUNDS = 20;
+// No hard cap — the model decides when it's done. The system prompt enforces a
+// create_pr final step which naturally terminates the loop.
+const MAX_TOOL_ROUNDS = Infinity;
 
 interface AgentExecutionOptions {
 	apiKey: string;
@@ -209,10 +210,143 @@ export async function* executeChat(options: {
 	const systemPrompt = buildSystemPrompt('chat');
 	const apiMessages = buildAPIMessages(systemPrompt, options.messages);
 
-	yield* streamNvidiaResponse({
-		apiKey: options.apiKey, model: options.model,
-		messages: apiMessages, maxTokens: 4096
-	});
+	const modelDef = getModelById(options.model);
+	const modelSupportsTools = modelDef?.supportsTools !== false;
+
+	// Give chat mode the web_search tool so the AI can look things up
+	const chatTools = modelSupportsTools
+		? [{ type: 'function' as const, function: {
+				name: 'web_search',
+				description: 'Search the web using DuckDuckGo. No API key required.',
+				parameters: {
+					type: 'object',
+					properties: { query: { type: 'string', description: 'The search query' } },
+					required: ['query']
+				}
+		  } }]
+		: undefined;
+
+	let currentMessages = [...apiMessages];
+
+	// Allow up to 5 search rounds so the AI can refine and follow up
+	for (let round = 0; round < 5; round++) {
+		let fullContent = '';
+		let toolCalls: ToolCall[] = [];
+
+		try {
+			const response = await callNvidia({
+				apiKey: options.apiKey,
+				model: options.model,
+				messages: currentMessages,
+				tools: chatTools,
+				toolChoice: chatTools ? 'auto' : undefined,
+				stream: true,
+				maxTokens: 4096
+			});
+
+			if (!response.body) throw new Error('No response body');
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			const tcMap = new Map<number, { id: string; name: string; args: string }>();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (!trimmed.startsWith('data: ')) continue;
+					const data = trimmed.slice(6);
+					if (data === '[DONE]') break;
+
+					try {
+						const parsed = JSON.parse(data);
+						const choice = parsed.choices?.[0];
+						if (!choice) continue;
+
+						const delta = choice.delta;
+						if (delta?.content) {
+							fullContent += delta.content;
+							yield { type: 'text', content: delta.content };
+						}
+
+						if (delta?.tool_calls) {
+							for (const tc of delta.tool_calls) {
+								const idx = tc.index ?? 0;
+								if (!tcMap.has(idx)) tcMap.set(idx, { id: '', name: '', args: '' });
+								const entry = tcMap.get(idx)!;
+								if (tc.id) entry.id = tc.id;
+								if (tc.function?.name) entry.name = tc.function.name;
+								if (tc.function?.arguments) entry.args += tc.function.arguments;
+							}
+						}
+					} catch { /* skip malformed chunks */ }
+				}
+			}
+			reader.releaseLock();
+
+			for (const [, tc] of Array.from(tcMap.entries()).sort(([a], [b]) => a - b)) {
+				toolCalls.push({
+					id: tc.id || crypto.randomUUID(),
+					type: 'function',
+					function: { name: tc.name, arguments: tc.args }
+				});
+			}
+		} catch (error) {
+			yield { type: 'error', error: error instanceof Error ? error.message : 'NVIDIA API error' };
+			return;
+		}
+
+		if (toolCalls.length === 0) {
+			yield { type: 'done' };
+			return;
+		}
+
+		// Execute web_search tool calls and feed results back
+		currentMessages.push({
+			role: 'assistant',
+			content: fullContent || '',
+			tool_calls: toolCalls.map((tc) => ({
+				id: tc.id, type: 'function' as const,
+				function: { name: tc.function.name, arguments: tc.function.arguments }
+			}))
+		});
+
+		for (const toolCall of toolCalls) {
+			if (toolCall.function.name !== 'web_search') continue;
+
+			// Emit a lightweight step so the user sees "Searching…"
+			const step: AgentStep = {
+				id: toolCall.id,
+				type: 'search_files',
+				status: 'running',
+				description: (() => {
+					try { return `Searching "${JSON.parse(toolCall.function.arguments).query}"`; }
+					catch { return 'Searching the web'; }
+				})(),
+				startedAt: new Date().toISOString(),
+				toolArgs: toolCall.function.arguments,
+				contentOffset: fullContent.length
+			};
+			yield { type: 'agent_step', agentStep: step };
+
+			const result = await executeToolCall(toolCall, {});
+			step.status = result.isError ? 'failed' : 'completed';
+			step.result = result.content;
+			step.completedAt = new Date().toISOString();
+			yield { type: 'agent_step', agentStep: step };
+
+			currentMessages.push({ role: 'tool', content: result.content, tool_call_id: toolCall.id });
+		}
+	}
+
+	yield { type: 'done' };
 }
 
 function buildAPIMessages(
