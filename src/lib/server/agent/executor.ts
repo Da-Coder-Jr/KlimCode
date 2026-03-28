@@ -430,15 +430,19 @@ function extractJsonObjects(text: string): Array<{ start: number; end: number; o
 
 /**
  * Parse tool calls that some models output as raw JSON text instead of using the API.
- * Handles multiple formats:
+ * Handles JSON formats:
  *   {"name": "tool", "parameters": {...}}
  *   {"type": "function", "name": "tool", "parameters": {...}}
  *   {"type": "function", "function": {"name": "tool", "arguments": "{...}"}}
+ * And XML/parameter-tag formats some NVIDIA NIM models emit:
+ *   <invoke name="tool"><parameter name="key">value</parameter></invoke>
+ *   <parameter=key>\nvalue  (broken/partial format — infers tool from param set)
  */
 export function parseTextToolCalls(text: string): { cleanText: string; toolCalls: ToolCall[] } {
 	const toolCalls: ToolCall[] = [];
 	const regions: Array<[number, number]> = [];
 
+	// ── JSON formats ──────────────────────────────────────────────────────────
 	for (const { start, end, obj } of extractJsonObjects(text)) {
 		let toolName: string | undefined;
 		let argsStr: string | undefined;
@@ -483,9 +487,83 @@ export function parseTextToolCalls(text: string): { cleanText: string; toolCalls
 		}
 	}
 
+	// ── XML / parameter-tag formats ──────────────────────────────────────────
+	// Format 5: <invoke name="tool_name"><parameter name="key">value</parameter></invoke>
+	// Also handles wrapping <function_calls> tag some models add.
+	const invokeRe = /<invoke\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/invoke>/g;
+	let m: RegExpExecArray | null;
+	while ((m = invokeRe.exec(text)) !== null) {
+		const toolName = m[1];
+		if (!KNOWN_TOOLS.has(toolName)) continue;
+		const body = m[2];
+		const params: Record<string, string> = {};
+		const paramRe = /<parameter\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/parameter>/g;
+		let pm: RegExpExecArray | null;
+		while ((pm = paramRe.exec(body)) !== null) {
+			params[pm[1]] = pm[2].trim();
+		}
+		if (Object.keys(params).length > 0) {
+			toolCalls.push({
+				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				type: 'function',
+				function: { name: toolName, arguments: JSON.stringify(params) }
+			});
+			regions.push([m.index, m.index + m[0].length]);
+		}
+	}
+
+	// Format 6: Broken partial format — model outputs PR/file content as text
+	// then appends <parameter=key>\nvalue lines without a wrapping invoke tag.
+	// Infer the tool from which parameters are present.
+	// e.g. "# My PR body...\n<parameter=branch>\nmain"
+	const looseParamRe = /(?:<parameter=(\w+)>\n?([\s\S]*?)(?=\n?<parameter=|\s*$))/g;
+	const looseParams: Record<string, string> = {};
+	let looseStart = text.length;
+	let looseEnd = 0;
+	let lm: RegExpExecArray | null;
+	while ((lm = looseParamRe.exec(text)) !== null) {
+		looseParams[lm[1]] = lm[2].trim();
+		looseStart = Math.min(looseStart, lm.index);
+		looseEnd = Math.max(looseEnd, lm.index + lm[0].length);
+	}
+	if (Object.keys(looseParams).length > 0) {
+		// Infer tool name from which parameters are present
+		let inferredTool: string | undefined;
+		const keys = new Set(Object.keys(looseParams));
+		if (keys.has('branch') || keys.has('title') || keys.has('body')) {
+			inferredTool = 'create_pr';
+			// If body is missing, use the text before the first <parameter= tag as the body
+			if (!looseParams.body && looseStart > 0) {
+				looseParams.body = text.slice(0, looseStart).trim();
+				looseStart = 0;
+			}
+			// Default title from first heading if missing
+			if (!looseParams.title) {
+				const h1 = /^#+ (.+)/m.exec(looseParams.body || '');
+				looseParams.title = h1 ? h1[1].trim() : 'Agent changes';
+			}
+		} else if (keys.has('path') && keys.has('content')) {
+			inferredTool = 'write_file';
+		} else if (keys.has('path') && keys.has('old_text') && keys.has('new_text')) {
+			inferredTool = 'edit_file';
+		} else if (keys.has('query')) {
+			inferredTool = 'web_search';
+		}
+		if (inferredTool) {
+			toolCalls.push({
+				id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				type: 'function',
+				function: { name: inferredTool, arguments: JSON.stringify(looseParams) }
+			});
+			regions.push([looseStart, looseEnd]);
+		}
+	}
+
+	// Remove matched regions from text (reverse order to preserve indices)
 	let cleanText = text;
-	for (let i = regions.length - 1; i >= 0; i--) {
-		cleanText = cleanText.slice(0, regions[i][0]) + cleanText.slice(regions[i][1]);
+	const sortedRegions = [...regions].sort((a, b) => b[0] - a[0]);
+	for (const [s, e] of sortedRegions) {
+		cleanText = cleanText.slice(0, s) + cleanText.slice(e);
 	}
 
 	return { cleanText: cleanText.trim(), toolCalls };
