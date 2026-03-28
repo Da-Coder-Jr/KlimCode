@@ -24,16 +24,26 @@
 
 	async function handleNewChat() {
 		showNewMenu = false;
-		const id = await createConversation('chat', $settings.defaultModel);
-		onClose();
-		goto(`/chat/${id}`);
+		try {
+			const model = $settings.defaultModel || 'qwen/qwen3-coder-480b-a35b-instruct';
+			const id = await createConversation('chat', model);
+			onClose();
+			goto(`/chat/${id}`);
+		} catch (err) {
+			console.error('Failed to create chat:', err);
+		}
 	}
 
 	async function handleNewAgent() {
 		showNewMenu = false;
-		const id = await createConversation('agent', $settings.defaultModel);
-		onClose();
-		goto(`/chat/${id}`);
+		try {
+			const model = $settings.defaultModel || 'qwen/qwen3-coder-480b-a35b-instruct';
+			const id = await createConversation('agent', model);
+			onClose();
+			goto(`/chat/${id}`);
+		} catch (err) {
+			console.error('Failed to create agent:', err);
+		}
 	}
 
 	async function handleSelect(id: string) {

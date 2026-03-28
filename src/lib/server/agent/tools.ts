@@ -1,8 +1,8 @@
-import type { ToolCall, ToolResult, AgentStep } from '$types/core';
+import type { ToolCall, ToolResult } from '$types/core';
 import { Workspace, WorkspaceError } from './workspace';
 
 export interface ToolExecutionContext {
-	workspace: Workspace;
+	workspace?: Workspace;
 }
 
 export async function executeToolCall(
@@ -26,27 +26,38 @@ export async function executeToolCall(
 	try {
 		let result: string;
 
-		switch (funcName) {
-			case 'read_file':
-				result = await handleReadFile(workspace, args);
-				break;
-			case 'write_file':
-				result = handleWriteFile(workspace, args);
-				break;
-			case 'edit_file':
-				result = handleEditFile(workspace, args);
-				break;
-			case 'search_files':
-				result = await handleSearchFiles(workspace, args);
-				break;
-			case 'list_files':
-				result = await handleListFiles(workspace, args);
-				break;
-			case 'create_pr':
-				result = await handleCreatePR(workspace, args);
-				break;
-			default:
-				result = `Unknown tool: ${funcName}. Available tools are: read_file, write_file, edit_file, search_files, list_files, create_pr`;
+		// web_search works without a workspace
+		if (funcName === 'web_search') {
+			result = await handleWebSearch(args);
+		} else if (!workspace) {
+			return {
+				toolCallId: toolCall.id,
+				content: `Tool '${funcName}' requires a connected GitHub repository. Please connect a repo first.`,
+				isError: true
+			};
+		} else {
+			switch (funcName) {
+				case 'read_file':
+					result = await handleReadFile(workspace, args);
+					break;
+				case 'write_file':
+					result = handleWriteFile(workspace, args);
+					break;
+				case 'edit_file':
+					result = handleEditFile(workspace, args);
+					break;
+				case 'search_files':
+					result = await handleSearchFiles(workspace, args);
+					break;
+				case 'list_files':
+					result = await handleListFiles(workspace, args);
+					break;
+				case 'create_pr':
+					result = await handleCreatePR(workspace, args);
+					break;
+				default:
+					result = `Unknown tool: ${funcName}. Available tools are: read_file, write_file, edit_file, search_files, list_files, create_pr, web_search`;
+			}
 		}
 
 		return { toolCallId: toolCall.id, content: result };
@@ -91,6 +102,60 @@ async function handleListFiles(workspace: Workspace, args: Record<string, string
 	const files = await workspace.listFiles(args.directory);
 	if (files.length === 0) return 'No files found';
 	return `Files:\n${files.map((f) => `  ${f}`).join('\n')}`;
+}
+
+async function handleWebSearch(args: Record<string, string>): Promise<string> {
+	const query = args.query;
+	if (!query) return 'ERROR: query parameter is required';
+
+	try {
+		// Use DuckDuckGo Lite — no API key, no tracking, scrape-friendly
+		const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+		const res = await fetch(url, {
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (compatible; KlimCode/1.0)'
+			}
+		});
+
+		if (!res.ok) return `Search failed: HTTP ${res.status}`;
+
+		const html = await res.text();
+
+		// Extract result titles, URLs, and snippets from DuckDuckGo HTML
+		const results: string[] = [];
+
+		// Match result blocks: <a class="result__a" href="...">title</a> and <a class="result__snippet">snippet</a>
+		const titleRe = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+		const snippetRe = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+
+		const titles: Array<{ url: string; title: string }> = [];
+		const snippets: string[] = [];
+
+		let m: RegExpExecArray | null;
+		while ((m = titleRe.exec(html)) !== null && titles.length < 8) {
+			const href = m[1];
+			const title = m[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+			if (title && href) titles.push({ url: href, title });
+		}
+
+		while ((m = snippetRe.exec(html)) !== null && snippets.length < 8) {
+			const snippet = m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+			if (snippet) snippets.push(snippet);
+		}
+
+		if (titles.length === 0) {
+			return `No results found for: ${query}`;
+		}
+
+		for (let i = 0; i < Math.min(titles.length, 5); i++) {
+			const snippet = snippets[i] ? `\n   ${snippets[i]}` : '';
+			results.push(`${i + 1}. ${titles[i].title}${snippet}`);
+		}
+
+		return `Search results for "${query}":\n\n${results.join('\n\n')}`;
+	} catch (err) {
+		return `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
+	}
 }
 
 async function handleCreatePR(workspace: Workspace, args: Record<string, string>): Promise<string> {
