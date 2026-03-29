@@ -334,19 +334,20 @@ export class Workspace {
 					branch: branchName
 				};
 
-				// If updating, we need the current SHA
-				if (file.status === 'modified') {
-					const fileRes = await fetch(
-						`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}?ref=${branchName}`,
-						{ headers: this.githubHeaders() }
-					);
-					if (fileRes.ok) {
-						const fileData = await fileRes.json();
-						body.sha = fileData.sha;
-					}
+				// Always check if the file already exists on the branch — GitHub
+				// requires the current SHA when updating an existing file.
+				// A newly-created branch inherits all files from the base, so even
+				// "added" files may already exist there.
+				const fileRes = await fetch(
+					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}?ref=${branchName}`,
+					{ headers: this.githubHeaders() }
+				);
+				if (fileRes.ok) {
+					const fileData = await fileRes.json();
+					body.sha = fileData.sha;
 				}
 
-				await fetch(
+				const putRes = await fetch(
 					`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${encodeURIComponent(file.path)}`,
 					{
 						method: 'PUT',
@@ -354,6 +355,10 @@ export class Workspace {
 						body: JSON.stringify(body)
 					}
 				);
+				if (!putRes.ok) {
+					const errText = await putRes.text().catch(() => '');
+					throw new WorkspaceError(`Failed to commit ${file.path} (HTTP ${putRes.status}): ${errText}`);
+				}
 			}
 		}
 
