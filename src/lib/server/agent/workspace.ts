@@ -245,6 +245,70 @@ export class Workspace {
 		return lines.join('\n');
 	}
 
+	/** Switch this workspace to a different repository */
+	async cloneRepo(owner: string, name: string, branch?: string): Promise<void> {
+		this.repoOwner = owner;
+		this.repoName = name;
+		this.files.clear();
+		this.fileCache.clear();
+		this._defaultBranchResolved = false;
+		if (branch) {
+			this.baseBranch = branch;
+			this.branch = branch;
+		} else {
+			await this.resolveDefaultBranch();
+		}
+	}
+
+	/** Execute a shell command on the server */
+	async executeCommand(command: string, cwd?: string): Promise<{ output: string; exitCode: number }> {
+		const { exec } = await import('child_process');
+		const { promisify } = await import('util');
+		const execAsync = promisify(exec);
+		try {
+			const { stdout, stderr } = await execAsync(command, {
+				cwd: cwd || process.cwd(),
+				timeout: 30000,
+				maxBuffer: 1024 * 1024
+			});
+			const output = [stdout, stderr ? 'STDERR: ' + stderr : ''].filter(Boolean).join('\n');
+			this.commands.push({ command, output, exitCode: 0 });
+			return { output: output || '(no output)', exitCode: 0 };
+		} catch (error: unknown) {
+			const err = error as { stdout?: string; stderr?: string; code?: number; message?: string };
+			const output = [err.stdout, err.stderr ? 'STDERR: ' + err.stderr : err.message].filter(Boolean).join('\n');
+			const exitCode = typeof err.code === 'number' ? err.code : 1;
+			this.commands.push({ command, output: output || '', exitCode });
+			return { output: output || '(no output)', exitCode };
+		}
+	}
+
+	/** Merge a GitHub pull request */
+	async mergeGitHubPR(
+		prNumber: number,
+		method: 'merge' | 'squash' | 'rebase' = 'squash'
+	): Promise<{ merged: boolean; message: string }> {
+		const res = await fetch(
+			`https://api.github.com/repos/${this.repoOwner}/${this.repoName}/pulls/${prNumber}/merge`,
+			{ method: 'PUT', headers: this.githubHeaders(), body: JSON.stringify({ merge_method: method }) }
+		);
+
+		if (!res.ok) {
+			const errText = await res.text().catch(() => '');
+			let msg = `Failed to merge PR (HTTP ${res.status})`;
+			if (res.status === 405) {
+				try { msg = (JSON.parse(errText) as { message?: string }).message || 'Pull Request is not mergeable (conflicts, pending reviews, or failed checks)'; }
+				catch { msg = 'Pull Request is not mergeable (conflicts, pending reviews, or failed checks)'; }
+			} else if (res.status === 409) {
+				msg = 'Merge conflict — resolve conflicts before merging';
+			}
+			throw new WorkspaceError(msg);
+		}
+
+		const data = await res.json() as { merged: boolean; message: string };
+		return { merged: data.merged, message: data.message };
+	}
+
 	async createPullRequest(
 		title: string,
 		body: string,

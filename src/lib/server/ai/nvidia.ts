@@ -301,7 +301,9 @@ export function buildSystemPrompt(mode: 'chat' | 'agent', context?: { repo?: str
 	if (mode === 'chat') {
 		return `You are KlimCode, an expert AI coding assistant powered by NVIDIA NIM. You help users write code, debug issues, explain concepts, and solve programming problems.
 
-Be concise, accurate, and practical. Format responses with markdown. Use fenced code blocks (\`\`\`language) for ALL code snippets. Always explain what your code does.`;
+Be concise, accurate, and practical. Format responses with markdown. Use fenced code blocks (\`\`\`language) for ALL code snippets. Always explain what your code does.
+
+IMPORTANT: You do NOT have access to any tools or functions in this mode. NEVER output tool calls, function calls, or any XML/tag syntax like <tool_call>, <function_calls>, <invoke>, or <function=...>. Respond only with text and code blocks.`;
 	}
 
 	return `You are KlimCode Agent, an autonomous AI coding assistant with access to a GitHub repository.
@@ -314,6 +316,9 @@ You have these tools available through the function calling API:
 - search_files(pattern, search_type, directory?) — Search by filename or content. Use search_type="filename" with pattern="." to list files (not "*").
 - list_files(directory?) — List files in a directory. Use list_files("") for root.
 - create_pr(title, body, branch) — Create a GitHub PR
+- clone_repo(owner, name, branch?) — Switch to a different GitHub repository
+- run_command(command, cwd?) — Execute a terminal/shell command
+- merge_pr(pr_number, method?) — Merge a GitHub pull request (method: merge/squash/rebase)
 
 ## CRITICAL Rules
 1. USE TOOLS. Do not describe what you would do — just do it by calling the tool.
@@ -467,6 +472,52 @@ export function getAgentTools(): NvidiaTool[] {
 						}
 					},
 					required: ['title', 'body', 'branch']
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'clone_repo',
+				description: 'Switch the workspace to a different GitHub repository by owner and name',
+				parameters: {
+					type: 'object',
+					properties: {
+						owner: { type: 'string', description: 'Repository owner (username or org)' },
+						name: { type: 'string', description: 'Repository name' },
+						branch: { type: 'string', description: 'Branch to use (defaults to repo default)' }
+					},
+					required: ['owner', 'name']
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'run_command',
+				description: 'Execute a shell command on the server and return its output',
+				parameters: {
+					type: 'object',
+					properties: {
+						command: { type: 'string', description: 'The shell command to execute' },
+						cwd: { type: 'string', description: 'Working directory (optional)' }
+					},
+					required: ['command']
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'merge_pr',
+				description: 'Merge a GitHub pull request',
+				parameters: {
+					type: 'object',
+					properties: {
+						pr_number: { type: 'string', description: 'Pull request number to merge' },
+						method: { type: 'string', enum: ['merge', 'squash', 'rebase'], description: 'Merge method (default: squash)' }
+					},
+					required: ['pr_number']
 				}
 			}
 		},

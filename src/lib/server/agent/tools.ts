@@ -52,8 +52,17 @@ export async function executeToolCall(
 				case 'create_pr':
 					result = await handleCreatePR(workspace, args);
 					break;
+				case 'clone_repo':
+					result = await handleCloneRepo(workspace, args);
+					break;
+				case 'run_command':
+					result = await handleRunCommand(workspace, args);
+					break;
+				case 'merge_pr':
+					result = await handleMergePR(workspace, args);
+					break;
 				default:
-					result = `Unknown tool: ${funcName}. Available tools are: read_file, write_file, edit_file, search_files, list_files, create_pr`;
+					result = `Unknown tool: ${funcName}. Available tools: read_file, write_file, edit_file, search_files, list_files, create_pr, clone_repo, run_command, merge_pr`;
 			}
 		}
 
@@ -115,4 +124,35 @@ async function handleCreatePR(workspace: Workspace, args: Record<string, string>
 	);
 
 	return `PR #${pr.number} created!\nURL: ${pr.url}\nBranch: ${branchName}\nFiles changed: ${changes.map((f) => f.path).join(', ')}`;
+}
+
+async function handleCloneRepo(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	let owner = args.owner;
+	let name = args.name;
+
+	if ((!owner || !name) && (args.repo_url || args.url || args.repo)) {
+		const repoStr = args.repo_url || args.url || args.repo;
+		const match = repoStr.match(/(?:github\.com\/)?([^/]+)\/([^/\s]+)/);
+		if (match) { owner = match[1]; name = match[2].replace(/\.git$/, ''); }
+	}
+
+	if (!owner || !name) throw new WorkspaceError('Provide owner and name, or a GitHub repository URL');
+
+	await workspace.cloneRepo(owner, name, args.branch);
+	return `Switched to repository ${owner}/${name} (branch: ${workspace.baseBranch})`;
+}
+
+async function handleRunCommand(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	if (!args.command) throw new WorkspaceError('command is required');
+	const { output, exitCode } = await workspace.executeCommand(args.command, args.cwd);
+	const status = exitCode === 0 ? 'Success' : `Failed (exit code ${exitCode})`;
+	return `$ ${args.command}\n${status}\n\n${output}`;
+}
+
+async function handleMergePR(workspace: Workspace, args: Record<string, string>): Promise<string> {
+	const prNumber = parseInt(args.pr_number || args.number, 10);
+	if (isNaN(prNumber)) throw new WorkspaceError('Invalid PR number');
+	const method = (args.method as 'merge' | 'squash' | 'rebase') || 'squash';
+	const result = await workspace.mergeGitHubPR(prNumber, method);
+	return result.merged ? `PR #${prNumber} merged successfully` : `Could not merge PR #${prNumber}: ${result.message}`;
 }

@@ -305,6 +305,12 @@ export async function* executeChat(options: {
 
 		// toolCalls is intentionally unused — chat mode has no tools
 		void toolCalls;
+
+		// Strip any residual tool call syntax that leaked through
+		const cleaned = cleanChatResponse(fullContent);
+		if (cleaned !== fullContent) {
+			yield { type: 'text_replace', content: cleaned };
+		}
 	}
 
 	yield { type: 'done' };
@@ -330,7 +336,7 @@ function buildAPIMessages(
 
 const KNOWN_TOOLS = new Set([
 	'read_file', 'write_file', 'edit_file', 'search_files',
-	'list_files', 'create_pr'
+	'list_files', 'create_pr', 'clone_repo', 'run_command', 'merge_pr'
 ]);
 
 /**
@@ -499,6 +505,36 @@ export function parseTextToolCalls(text: string): { cleanText: string; toolCalls
 		}
 	}
 
+	// Format 7: <tool_call>\n<function=tool_name>\n<parameter=key>\nvalue\n</tool_call>
+	// Some models emit this non-standard format. Strip it even if unparseable.
+	const toolCallTagRe = /<tool_call>([\s\S]*?)(?:<\/tool_call>|(?=<tool_call>))/g;
+	let tcm: RegExpExecArray | null;
+	while ((tcm = toolCallTagRe.exec(text)) !== null) {
+		const body = tcm[1];
+		const funcMatch = /<function=([^>\s]+)>/.exec(body);
+		if (funcMatch && KNOWN_TOOLS.has(funcMatch[1])) {
+			const params: Record<string, string> = {};
+			const pRe = /<parameter=(\w+)>\n?([\s\S]*?)(?=\n?<(?:parameter|\/tool_call))/g;
+			let pm: RegExpExecArray | null;
+			while ((pm = pRe.exec(body)) !== null) params[pm[1]] = pm[2].trim();
+			if (Object.keys(params).length > 0) {
+				toolCalls.push({
+					id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+					type: 'function',
+					function: { name: funcMatch[1], arguments: JSON.stringify(params) }
+				});
+			}
+		}
+		regions.push([tcm.index, tcm.index + tcm[0].length]);
+	}
+	// Strip unterminated <tool_call> block at end of text
+	const lastTc = text.lastIndexOf('<tool_call>');
+	if (lastTc !== -1 && !text.slice(lastTc).includes('</tool_call>')) {
+		if (!regions.some(([s, e]) => s <= lastTc && lastTc < e)) {
+			regions.push([lastTc, text.length]);
+		}
+	}
+
 	// Remove matched regions from text (reverse order to preserve indices)
 	let cleanText = text;
 	const sortedRegions = [...regions].sort((a, b) => b[0] - a[0]);
@@ -507,6 +543,22 @@ export function parseTextToolCalls(text: string): { cleanText: string; toolCalls
 	}
 
 	return { cleanText: cleanText.trim(), toolCalls };
+}
+
+/**
+ * Strip tool call syntax patterns from chat responses.
+ * Some models emit <tool_call> and similar tags even without tools.
+ */
+function cleanChatResponse(text: string): string {
+	let result = text;
+	result = result.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '');
+	result = result.replace(/<tool_call>[\s\S]*/g, '');
+	result = result.replace(/<function_calls>[\s\S]*?<\/function_calls>/g, '');
+	result = result.replace(/\n?<function=[^>]*>[^\n]*/g, '');
+	result = result.replace(/\n?<parameter=[^>]*>[^\n]*/g, '');
+	// DeepSeek DSML blocks
+	result = result.replace(/<\uFF5CDSML\uFF5Cfunction_calls>[\s\S]*?<\/\uFF5CDSML\uFF5Cfunction_calls>/g, '');
+	return result.trim();
 }
 
 function buildStepDescription(toolName: string, argsJson: string): string {
@@ -522,6 +574,9 @@ function buildStepDescription(toolName: string, argsJson: string): string {
 			case 'search_files': return args.pattern ? `Searching for "${args.pattern}"` : 'Searching files';
 			case 'list_files': return path ? `Listing ${path}` : 'Listing files';
 			case 'create_pr': return args.title ? `Creating PR: ${args.title}` : 'Creating pull request';
+			case 'clone_repo': return args.name ? `Cloning ${args.owner || ''}/${args.name}` : 'Cloning repository';
+			case 'run_command': return args.command ? `$ ${args.command.slice(0, 60)}` : 'Running command';
+			case 'merge_pr': return args.pr_number ? `Merging PR #${args.pr_number}` : 'Merging pull request';
 			default: return `Running ${toolName}`;
 		}
 	} catch {
@@ -532,7 +587,8 @@ function buildStepDescription(toolName: string, argsJson: string): string {
 function mapToolToStep(toolName: string): AgentStep['type'] {
 	const map: Record<string, AgentStep['type']> = {
 		read_file: 'read_file', write_file: 'write_file', edit_file: 'edit_file',
-		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr'
+		search_files: 'search_files', list_files: 'browse_repo', create_pr: 'create_pr',
+		clone_repo: 'browse_repo', run_command: 'think', merge_pr: 'create_pr'
 	};
 	return map[toolName] || 'think';
 }

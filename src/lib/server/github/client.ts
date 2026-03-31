@@ -142,11 +142,29 @@ export async function mergePullRequest(
 	prNumber: number,
 	method: 'merge' | 'squash' | 'rebase' = 'squash'
 ): Promise<{ merged: boolean; message: string }> {
-	const response = await githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, token, {
+	const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
 		method: 'PUT',
+		headers: {
+			Authorization: `Bearer ${token}`,
+			Accept: 'application/vnd.github.v3+json',
+			'Content-Type': 'application/json'
+		},
 		body: JSON.stringify({ merge_method: method })
 	});
-	const data = await response.json();
+
+	if (!response.ok) {
+		const body = await response.text();
+		let message = `GitHub API error: ${response.status}`;
+		if (response.status === 405) {
+			try { message = (JSON.parse(body) as { message?: string }).message || 'Pull Request is not mergeable. Check for conflicts, pending reviews, or failed status checks.'; }
+			catch { message = 'Pull Request is not mergeable. Check for conflicts, pending reviews, or failed status checks.'; }
+		} else if (response.status === 409) {
+			message = 'Merge conflict detected. Resolve conflicts before merging.';
+		}
+		throw new GitHubAPIError(message, response.status, body);
+	}
+
+	const data = await response.json() as { merged: boolean; message: string };
 	return { merged: data.merged, message: data.message };
 }
 
